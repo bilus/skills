@@ -1,0 +1,25 @@
+# Build artifacts
+*.skill
+dist/
+
+# Local setup helpers (not part of the published repo)
+SETUP.md
+setup.sh
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+\#*\#
+.\#*
+
+# Haskell (for any .hs files in skills)
+dist-newstyle/
+.stack-work/
+*.hi
+*.o
