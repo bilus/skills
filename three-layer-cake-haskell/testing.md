@@ -284,3 +284,19 @@ test_createTodo = case runTest (createTodo "buy milk") of ...
 ```
 
 The principle: test the function the user will actually call, in the simplest monad that supports it.
+
+---
+
+## 10. When the production instance uses a handle
+
+If production gives a capability a handle (for decoration or runtime swap, see [handles-upgrade.md](handles-upgrade.md)), the pure-state test instance above is incompatible with that handle's `IO`-typed fields.
+
+There are three ways out:
+
+1. **Drop the handle for the to-be-faked capability.** Keep handles where they earn their keep (DB with logging/retry), use pure typeclass instances where they don't (email). The pure fake stays straightforward.
+
+2. **Use `IO + IORef` as a test substrate.** Keep all handles. Make `TestM` a `MonadIO` and back fakes with `IORef`s. Tests aren't pure, but the production code path is exercised.
+
+3. **Parameterize the handle by monad** (`Handle m`). The handle can hold `TestM` actions in tests. Most flexible, most type plumbing.
+
+Pick per capability, not per app. See [handles-upgrade.md](handles-upgrade.md) section 9 for the full discussion.

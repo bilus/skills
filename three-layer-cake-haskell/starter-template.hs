@@ -14,17 +14,18 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DerivingStrategies         #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 
 module App where
 
-import Control.Exception      (SomeException)
-import Control.Monad.Except
+import Control.Exception      (Exception, SomeException)
+import Control.Monad.Except   (MonadError (..))
 import Control.Monad.Reader
 import Data.Text              (Text)
 import qualified Data.Text as T
-import UnliftIO.Exception     (try)
+import UnliftIO.Exception     (catch, throwIO, try)
 
 -- ════════════════════════════════════════════════════════════
 -- LAYER 3: Pure core
@@ -83,16 +84,34 @@ data Env = Env
   -- Add more resources as needed (HTTP managers, configs, refs).
   }
 
-newtype AppM a = AppM { unAppM :: ReaderT Env (ExceptT AppError IO) a }
+-- The wrapper that carries domain errors as real IO exceptions.
+newtype AppException = AppException AppError
+  deriving Show
+instance Exception AppException
+
+-- ReaderT over IO. No ExceptT. Domain errors travel as IO exceptions
+-- wrapped in AppException; MonadError is the interface, not the transformer.
+newtype AppM a = AppM { unAppM :: ReaderT Env IO a }
   deriving newtype
     ( Functor, Applicative, Monad
     , MonadReader Env
-    , MonadError AppError
     , MonadIO
     )
 
+-- The hand-written MonadError instance: throwError raises AppException,
+-- catchError catches only that wrapper.
+instance MonadError AppError AppM where
+  throwError = AppM . liftIO . throwIO . AppException
+  catchError (AppM action) handler =
+    AppM $ ReaderT $ \env ->
+      runReaderT action env
+        `catch` \(AppException e) -> runReaderT (unAppM (handler e)) env
+
+-- The one place the wrapper is unwound: convert back to Either at the boundary.
 runApp :: Env -> AppM a -> IO (Either AppError a)
-runApp env = runExceptT . flip runReaderT env . unAppM
+runApp env (AppM action) =
+  (Right <$> runReaderT action env)
+    `catch` \(AppException e) -> pure (Left e)
 
 -- ════════════════════════════════════════════════════════════
 -- The IO boundary
@@ -101,11 +120,9 @@ runApp env = runExceptT . flip runReaderT env . unAppM
 -- `try` from UnliftIO.Exception only catches synchronous exceptions —
 -- async exceptions (ThreadKilled, UserInterrupt, timeouts) still propagate.
 tryIO :: IO a -> AppM a
-tryIO action = do
-  result <- liftIO (try action)
-  case result of
-    Right a                   -> pure a
-    Left (e :: SomeException) -> throwError (classify e)
+tryIO action = liftIO (try action) >>= \case
+  Right a                   -> pure a
+  Left (e :: SomeException) -> throwError (classify e)
   where
     -- Refine this to map specific exception types to specific AppError variants
     -- (e.g. SqlError → DbError with code, IOException → DbError, etc.).

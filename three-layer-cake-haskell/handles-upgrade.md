@@ -328,3 +328,31 @@ mkDb conn logger = loggingDb logger (retryingDb 3 (postgresDb conn))
 ```
 
 The principle: handles are *values you compose*. Decorate by wrapping, not by editing.
+
+---
+
+## 9. Tension with pure-fake tests
+
+A handle's fields are `IO`-typed, which conflicts with pure-state test fakes. If you give a capability a handle in production and want to fake it purely in `State` for tests, the types don't match.
+
+**The problem**: You have `TodoDb` with `IO` fields in production, but you want `instance MonadTodoDb TestM` backed by pure `State`, and there's no way to put a `State` action in an `IO`-typed field.
+
+**The key insight**: The typeclass-versus-handle choice is **per-capability, not per-app**. Different capabilities have different needs.
+
+### Three solution strategies
+
+1. **Drop the handle for the capability that needs pure fakes.** Keep handles where decoration matters (DB with logging/retry), use pure typeclass instances where it doesn't (email). The pure fake becomes straightforward. This is usually the right answer.
+
+2. **Use `IO + IORef` as a uniform test substrate.** Keep all handles. Make `TestM` a `MonadIO` and back fakes with `IORef`s. Tests aren't pure, but the production handle paths stay exercised. Good for integration-style tests.
+
+3. **Parameterize the handle by monad** (`Handle m` instead of `Handle`). The handle can hold `AppM` actions in production and `TestM` actions in tests. Most flexible, most type plumbing. Reach for this only when you need both decoration AND pure tests of the same capability.
+
+### How to choose
+
+| You want | Pick |
+|----------|------|
+| Pure tests AND don't need to decorate this capability | Drop the handle for this capability (option 1) |
+| Decoration in production AND happy with `IO`-based tests | `IORef`-backed fakes (option 2) |
+| Decoration in production AND pure tests of the SAME capability | Polymorphic handle `Handle m` (option 3) |
+
+**A frequent mistake**: Deciding once for the whole app. Mixed answers across capabilities are normal and correct.

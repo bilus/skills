@@ -31,48 +31,20 @@ class Monad m => MonadTransaction m where
 
 ### Production instance
 
-The instance must handle three failure modes: domain errors via `MonadError`, synchronous exceptions, and async exceptions (cancellation). `UnliftIO` provides the building blocks.
-
-```haskell
-import UnliftIO (bracket_)
-import UnliftIO.Exception (try, throwIO, SomeException)
-
-instance MonadTransaction AppM where
-  withTransaction action = do
-    conn <- asks envConn
-
-    -- Begin the transaction.
-    tryIO (beginTransaction conn)
-
-    -- Run the action, watching for both AppError and exceptions.
-    -- We need to roll back on EITHER failure mode.
-    result <- (Right <$> action)
-              `catchError` (\err -> pure (Left err))
-
-    case result of
-      Right a -> do
-        tryIO (commit conn)
-        pure a
-      Left err -> do
-        tryIO (rollback conn)
-        throwError err
-```
-
-This handles `MonadError` failures. For async-exception safety you need `bracket`-style cleanup; in practice use the helper your DB library provides (`withTransaction` from `postgresql-simple`, etc.) and wrap *that* in `tryIO`:
+Because `AppM` uses a hand-written `MonadError` instance where `throwError` raises a real `IO` exception (wrapped in `AppException`), a domain error inside a transaction propagates through the driver's `withTransaction` just like an infra exception would—triggering automatic rollback.
 
 ```haskell
 instance MonadTransaction AppM where
-  withTransaction action = do
-    conn <- asks envConn
-    env  <- ask
-    -- The driver's withTransaction handles rollback on exceptions.
-    -- We catch AppError manually inside.
-    result <- liftIO $ PG.withTransaction conn $ do
-      runApp env action
-    liftEither' result
+  withTransaction (AppM action) = AppM $ ReaderT $ \env ->
+    -- The driver's withTransaction rolls back on any IO exception.
+    -- On this AppM, throwError raises AppException (a real exception),
+    -- so domain errors short-circuit and roll back too—not just infra failures.
+    PG.withTransaction (envConn env) (runReaderT action env)
 ```
 
-The driver's `withTransaction` rolls back on any `IO` exception (including async). We thread `AppM`'s `Either AppError a` result through and rethrow.
+This is a direct payoff of the hand-written `MonadError` instance (see SKILL.md). Under an `ExceptT`-over-`IO` app monad, `throwError` produces a `Left` value that returns *normally* from the inner action, so the driver would see a successful return and commit before the error surfaced. The hand-written instance removes that footgun.
+
+For async-exception safety, the driver's `withTransaction` already handles cleanup via `bracket` internally. We just need to run our action inside it.
 
 ### Use in business code
 

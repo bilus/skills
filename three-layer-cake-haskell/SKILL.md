@@ -11,7 +11,9 @@ The three-layer cake separates a Haskell application into:
 2. **Business logic** — composed in an app monad with capability typeclasses, using `MonadError` for domain errors
 3. **Imperative shell** — `IO`, instances that wrap raw resources, error boundary that catches infra exceptions
 
-The default track in this skill: typeclasses for capabilities, `withDb`-style helpers in instances, `MonadError AppError` for domain errors, and exceptions in `IO` for infra errors caught at the boundary.
+The default track in this skill: typeclasses for capabilities, `withDb`-style helpers in instances, `MonadError AppError` as the *interface* (not `ExceptT`), and exceptions in `IO` for infra errors caught at the boundary.
+
+**Important**: The app monad is `ReaderT Env IO` with a hand-written `MonadError` instance—**not** `ExceptT` over `IO`. The well-known advice "don't use `ExceptT` over `IO`" targets that specific implementation, not the `MonadError` interface. Stacking `ExceptT` on `IO` causes misleading signatures, runtime cost, and broken composition with `concurrently`. The cake keeps the interface and drops that implementation.
 
 ---
 
@@ -70,19 +72,20 @@ A runnable starting point. Every three-layer-cake app looks like this.
 
 ```haskell
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 
 module App where
 
-import Control.Exception (SomeException)
-import Control.Monad.Except
+import Control.Exception      (Exception, SomeException)
+import Control.Monad.Except   (MonadError (..))
 import Control.Monad.Reader
-import Data.Text (Text)
+import Data.Text              (Text)
 import qualified Data.Text as T
-import UnliftIO.Exception (try)
+import UnliftIO.Exception     (catch, throwIO, try)
 
 -- ─── Layer 3: Pure core ───────────────────────────────────
 
@@ -130,27 +133,43 @@ data Env = Env
   }
 data Conn = Conn  -- stub; replace with postgresql-simple Connection etc.
 
-newtype AppM a = AppM { unAppM :: ReaderT Env (ExceptT AppError IO) a }
+-- The wrapper that carries domain errors as real IO exceptions.
+newtype AppException = AppException AppError
+  deriving Show
+instance Exception AppException
+
+-- ReaderT over IO. No ExceptT. Domain errors travel as IO exceptions
+-- wrapped in AppException; MonadError is the interface, not the transformer.
+newtype AppM a = AppM { unAppM :: ReaderT Env IO a }
   deriving newtype
     ( Functor, Applicative, Monad
     , MonadReader Env
-    , MonadError AppError
     , MonadIO
     )
 
+-- The hand-written MonadError instance: throwError raises AppException,
+-- catchError catches only that wrapper.
+instance MonadError AppError AppM where
+  throwError = AppM . liftIO . throwIO . AppException
+  catchError (AppM action) handler =
+    AppM $ ReaderT $ \env ->
+      runReaderT action env
+        `catch` \(AppException e) -> runReaderT (unAppM (handler e)) env
+
+-- The one place the wrapper is unwound: convert back to Either at the boundary.
 runApp :: Env -> AppM a -> IO (Either AppError a)
-runApp env = runExceptT . flip runReaderT env . unAppM
+runApp env (AppM action) =
+  (Right <$> runReaderT action env)
+    `catch` \(AppException e) -> pure (Left e)
 
 -- ─── The IO boundary ──────────────────────────────────────
 
 -- Catches synchronous exceptions; lets async exceptions through.
 -- `try` from UnliftIO.Exception, NOT Control.Exception.
 tryIO :: IO a -> AppM a
-tryIO action = do
-  result <- liftIO (try action)
-  case result of
-    Right a                   -> pure a
-    Left (e :: SomeException) -> throwError (DbError (T.pack (show e)))
+tryIO action = liftIO (try action) >>= \case
+  Right a                   -> pure a
+  Left (e :: SomeException) -> throwError (DbError (T.pack (show e)))
 
 -- The withX helper: pull a resource from Env, run IO, lift errors.
 -- One per capability. Each capability's instance methods become one-liners.
@@ -213,10 +232,12 @@ Two kinds of errors, two channels, one rule.
 
 | Kind | Examples | Where it lives | How it flows |
 |------|----------|----------------|--------------|
-| **Domain** | NotFound, InvalidInput, RuleViolated | Constructors of `AppError` | `throwError` / `liftEither'`; short-circuits the `do`-block via `ExceptT` |
+| **Domain** | NotFound, InvalidInput, RuleViolated | Constructors of `AppError` | `throwError` / `liftEither'`; short-circuits the `do`-block via the hand-written `MonadError` instance |
 | **Infra** | Connection lost, timeout, SQL error | `IO` exceptions from the driver | Raised by the library, caught by `tryIO`, converted to `AppError` (usually `DbError`) |
 
 **The rule**: business code never sees `IOException`. Every `IO` call from a capability instance goes through `tryIO` (or `withDb`, which folds `tryIO` in). The boundary is the instance, not the business function.
+
+There's a third category: **domain outcomes**. When an alternative result is a normal flow the caller will branch on (not a failure), model it as a return-type sum, not via `MonadError`. See section 4a below.
 
 ### Why `UnliftIO.Exception`
 
@@ -249,6 +270,61 @@ tryIO action = do
 ```
 
 `SqlError` here is from `postgresql-simple`; substitute the equivalent for whatever driver is in use. The point is: log the structured information you'll need to debug, then map to a domain-meaningful `AppError`.
+
+### 4a. Domain outcomes
+
+When a command's "failure" is actually part of the state machine (an alternative the caller will branch on), it shouldn't be an error at all. Model it as a sum type and return it. Reserve `MonadError` for things that really are failures.
+
+**Example**: `git push` may be rejected because the remote moved. That's not an error—it's a cue to fetch-rebase-push. But if the network died, that *is* an infra error.
+
+```haskell
+data PushOutcome   = Pushed | NeedsRebase
+data RebaseOutcome = Rebased | Conflicted [Conflict]
+
+class Monad m => MonadGit m where
+  gitPush        :: m PushOutcome
+  gitFetch       :: m ()
+  gitRebase      :: Text -> m RebaseOutcome
+  gitAbortRebase :: m ()
+```
+
+The instance classifies exit codes:
+
+```haskell
+instance MonadGit AppM where
+  gitPush = withGit $ \cwd -> do
+    (exit, _, err) <- runGit cwd ["push"]
+    case exit of
+      ExitSuccess -> pure Pushed
+      ExitFailure _ | looksLikeNonFastForward err -> pure NeedsRebase
+      ExitFailure n -> throwError (GitError ("push failed: " <> err))
+```
+
+Business code becomes a clean state machine:
+
+```haskell
+push :: (MonadGit m, MonadError AppError m) => m ()
+push = gitPush >>= \case
+  Pushed -> pure ()
+  NeedsRebase -> do
+    gitFetch
+    gitRebase "origin/HEAD" >>= \case
+      Rebased -> gitPush >>= expectPushed
+      Conflicted conflicts -> do
+        gitAbortRebase
+        throwError (PushConflict conflicts)
+  where
+    expectPushed Pushed      = pure ()
+    expectPushed NeedsRebase = throwError (UnexpectedRebase "after rebase")
+```
+
+**The decision**: if the caller will routinely write code for both branches, the alternative belongs in the return type. If the caller treats one branch as a rare exception, the error channel is fine.
+
+| Semantics | Best fit |
+|-----------|----------|
+| Binary success/failure; failure is rare and means something's wrong | `m ()` that throws via `MonadError` |
+| Multiple meaningful results; caller will routinely branch | `m PushOutcome` with explicit constructors |
+| Same operation used in both modes across the codebase | Two methods: strict (`gitPush :: m ()`) and permissive (`tryGitPush :: m PushOutcome`) |
 
 ---
 
@@ -459,8 +535,24 @@ Business functions should call capabilities, not `IO` directly. A `liftIO` in La
 ### DB types in business signatures
 `Connection`, `Row`, `Statement` — these are Layer 1 types. If they appear in Layer 2 signatures, the abstraction is leaking. Convert to domain types in the capability instance.
 
-### `Either` returns from capability methods
+### `Either AppError` returns from capability methods
 Reintroduces manual unwrapping. Use `MonadError` instead. (See section 5 anti-patterns.)
+
+Note: this rule targets `Either AppError`-style wrapped returns. A capability returning a domain-outcome sum type like `m PushOutcome` (where `PushOutcome = Pushed | NeedsRebase`) is correct and useful. See section 4a.
+
+### Using `MonadError` for what isn't an error
+When a command's alternative outcome is part of the state machine (the caller will routinely branch on it), modeling it as a thrown error hides the alternative path:
+
+```haskell
+-- Forces every caller to catchError just to handle the normal alternative (bad)
+gitPush :: m ()    -- throws PushRejected when remote moved
+
+-- The alternative is a value the caller pattern-matches on (good)
+gitPush :: m PushOutcome
+data PushOutcome = Pushed | NeedsRebase
+```
+
+See section 4a for the full discussion.
 
 ### Catching exceptions inside business code
 The boundary is the instance method, not the business function. If business code is catching exceptions, the wrong layer is doing the work.
@@ -488,9 +580,9 @@ Companion files in this skill, each focused on a single concern:
 
 - **[testing.md](testing.md)** — How to test business logic without IO. Pure `TestM` over `State` and `Except`; mock instances; assertion patterns. Read this whenever the user asks how to test, or wants to verify the pattern's testability claim.
 
-- **[alternative-exceptions.md](alternative-exceptions.md)** — The exception-based variant: `ReaderT Env IO` with custom exception types for infra and `Either DomainError` returns for domain errors. Suggest this if the user reports `ExceptT`-with-`async` composition problems, or prefers idiomatic-IO exception handling, or has heavy concurrent code where `ExceptT` is painful.
+- **[alternative-exceptions.md](alternative-exceptions.md)** — An alternative variant where domain errors are returned as `Either DomainError` values (not via `MonadError`) while infra errors remain exceptions. Consider this if the user prefers explicit `Either` in return types and finds `MonadError`'s hidden control flow uncomfortable. The default track (this file) uses `MonadError` with a hand-written instance that still composes cleanly with `async`/`concurrently`.
 
-- **[handles-upgrade.md](handles-upgrade.md)** — When and how to add handles (records of functions) on top of the typeclass approach. Read this when typeclass instances need to be decorated (logging, retry, metrics), when multiple implementations of one capability must live at once, or when runtime swapping is required. This is an upgrade path, not a replacement — the typeclasses stay.
+- **[handles-upgrade.md](handles-upgrade.md)** — When and how to add handles (records of functions) on top of the typeclass approach. Read this when typeclass instances need to be decorated (logging, retry, metrics), when multiple implementations of one capability must live at once, or when runtime swapping is required. This is an upgrade path, not a replacement — the typeclasses stay. Also covers the tension between handle's `IO`-typed fields and pure-state test fakes, with three solution strategies.
 
 - **[compensations.md](compensations.md)** — Undoing side effects when a multi-step operation fails partway. Covers DB transactions, bracket, sagas (compensating actions), and the outbox pattern. Read this when the user asks how to roll back changes on error, mentions sagas or compensating transactions, or describes a multi-step operation where partial completion would corrupt state.
 

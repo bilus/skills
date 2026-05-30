@@ -1,17 +1,18 @@
-# Alternative: Exception-Based Error Handling
+# Alternative: Explicit Either Returns for Domain Errors
 
-Companion to [SKILL.md](SKILL.md). This is an alternative track to the default `MonadError AppError` approach.
+Companion to [SKILL.md](SKILL.md). This is an alternative track where domain errors are returned as explicit `Either DomainError a` values instead of flowing through `MonadError`.
+
+**Note**: The default track (SKILL.md) now uses a hand-written `MonadError` instance over `ReaderT Env IO`—**not** `ExceptT`. That implementation composes cleanly with `async`/`concurrently` because `throwError` raises a real `IO` exception. If you were considering this alternative because `ExceptT` broke your concurrent code, check the default track first—it likely already solves that problem.
 
 ## When to suggest this variant
 
 Reach for this when any of these apply:
 
-- **`ExceptT` is biting concurrent code.** `ExceptT e IO` composes badly with `async`, `race`, `concurrently`. A failed async branch leaves you holding `IO (Either e a)` with no clean combinator. If the user reports this, suggest the alternative.
-- **The user prefers idiomatic-IO exception handling.** Some teams find `MonadError` ceremony heavier than custom exception types. Don't argue; switch tracks.
-- **The codebase already uses exceptions extensively.** Mixing `MonadError` with a sea of `throwIO`s creates two error channels that confuse readers.
-- **Heavy use of streaming libraries** (`conduit`, `pipes`) where the inner monad needs to be plain `IO` for composition.
+- **The user prefers explicit `Either` in return types.** Some teams find `MonadError`'s hidden control flow uncomfortable and want the "can-fail" nature visible in every signature.
+- **The codebase already uses exceptions extensively for infra.** Adding `MonadError` for domain errors creates a second channel; this variant consolidates infra to exceptions and domain to explicit returns.
+- **Heavy use of streaming libraries** (`conduit`, `pipes`) where the inner monad needs to be plain `IO` and explicit `Either` threading is preferred over typeclass-based error handling.
 
-Do **not** switch to this variant just because exceptions feel more familiar — `MonadError` has real benefits (signatures document failure, no hidden control flow, easier to test). Switch when there's a concrete pain point.
+Do **not** switch to this variant just because exceptions feel more familiar. The default track's `MonadError` has real benefits: polymorphic business signatures, cleaner do-blocks, and easier pure tests. Switch when there's a concrete preference for explicit `Either` returns.
 
 ---
 
@@ -202,52 +203,27 @@ handleCreateTodo env rawTitle =
 
 ---
 
-## 6. Concurrency: why this track exists
+## 6. Concurrency note
 
-The default `ExceptT AppError IO` is fine for sequential code. It breaks down when composing concurrent operations.
+**Historical context**: This file was written when the default track used `ExceptT` over `IO`, which composed badly with `async`/`concurrently`. The default track now uses a hand-written `MonadError` instance backed by real `IO` exceptions, which composes cleanly.
+
+With the updated default track, concurrent code works naturally:
 
 ```haskell
--- Default track: this doesn't typecheck the way you'd want
-import Control.Concurrent.Async
-
+-- Default track (now works because throwError raises a real exception):
 doBoth :: AppM (Todo, Todo)
-doBoth = do
-  t1 <- ???  -- how do you race two AppM actions?
-  t2 <- ???
-  pure (t1, t2)
-```
-
-`async` operates on `IO`, not `ExceptT e IO`. To use it you'd have to:
-
-```haskell
-doBoth :: AppM (Todo, Todo)
-doBoth = do
-  env <- ask
-  liftIO $ do
-    (r1, r2) <- concurrently
-      (runApp env (createTodo "a"))
-      (runApp env (createTodo "b"))
-    case (r1, r2) of
-      (Right a, Right b) -> pure (a, b)
-      (Left e, _)        -> throwIO (toException e)  -- now what?
-      (_, Left e)        -> throwIO (toException e)
-```
-
-Ugly. The exception-based track sidesteps this:
-
-```haskell
--- Alternative track: just works
-doBoth :: AppM (Either DomainError Todo, Either DomainError Todo)
 doBoth = do
   env <- ask
   liftIO $ concurrently
-    (runApp env (createTodo "a"))
-    (runApp env (createTodo "b"))
+    (runApp' env (createTodo "a"))
+    (runApp' env (createTodo "b"))
+  where
+    runApp' env action = do
+      result <- runApp env action
+      either (throwIO . AppException) pure result
 ```
 
-Infra exceptions propagate naturally through `concurrently` (which cancels the sibling and rethrows). Domain `Either`s come back as values.
-
-This is the structural reason to prefer the alternative for concurrent codebases.
+The main remaining reason for this alternative is **preference for explicit `Either` returns** (making the "can-fail" nature visible in every business function signature) rather than concurrency composition.
 
 ---
 
@@ -306,7 +282,7 @@ Pure tests are no longer free — that's the tax for this track.
 | Async-exception safety | Yes (via `UnliftIO`) | Yes (use `UnliftIO` for `catch`) |
 | Mental model | One channel | Two channels (exception + return) |
 
-The default is better for most apps. Switch to the alternative when concurrency dominates.
+The default is better for most apps. Switch to the alternative only when your team strongly prefers explicit `Either` returns over `MonadError`'s hidden control flow.
 
 ---
 
