@@ -6,6 +6,32 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ---
 
+## tracer-bullet-delivery
+
+### [0.1.0] - 2026-07-25
+
+Initial release. Staged delivery: plan approval gate, walking skeleton as stage 1, one vertical slice per stage, 400 LOC hard cap, append-only ledger, halt for review at every boundary. Ships with a human-facing `README.md`.
+
+## hole-driven-delivery
+
+### [0.1.0] - 2026-07-25
+
+Initial release. Staged delivery: plan approval gate, typechecked skeleton of named `HOLE(id)` stubs as the reviewable design, outside-in fill under a build-never-red invariant, grep census as progress bar, halt for review at every boundary. Ships with a human-facing `README.md`.
+
+## test-ratchet-development
+
+### [0.1.0] - 2026-07-25
+
+Initial release. Staged delivery: plan approval gate, one failing acceptance test opens each stage, red-green-refactor with commit-per-green, append-only test diffs (test changes need human sign-off), halt for review at every boundary. Ships with a human-facing `README.md`.
+
+All three share an identical outer loop and differ only in inner strategy, for A/B comparison — see `evals/staged-delivery/` for the standard task and rerun instructions. All three require `avoiding-ai-tells` as background.
+
+## avoiding-ai-tells
+
+### [0.1.0] - 2026-07-25
+
+Initial release. Style rules for AI-generated code under human review: comment gradient instead of uniform narration, ASCII typography, no gold-plating or premature abstraction, behavior-named tests, human-shaped READMEs and commit history, no faked struggle, one-sentence disclosure of substantial AI assistance. Ships with a human-facing `README.md`.
+
 ## three-layer-cake-haskell
 
 ### [0.1.0] - 2026-05-16

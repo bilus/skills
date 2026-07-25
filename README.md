@@ -9,6 +9,12 @@ Each skill is a self-contained directory teaching Claude a specific pattern, wor
 | Skill | What it teaches |
 |-------|-----------------|
 | [`three-layer-cake-haskell`](./three-layer-cake-haskell) | The three-layer cake architecture for Haskell apps: capability typeclasses, `MonadError` for domain errors, IO exceptions for infra, with testing, alternatives, handles, and compensating actions. |
+| [`tracer-bullet-delivery`](./tracer-bullet-delivery) | Staged delivery for coding agents: walking skeleton first, then one vertical slice per stage, hard LOC budget, halt for human review at every stage boundary. |
+| [`hole-driven-delivery`](./hole-driven-delivery) | Staged delivery for coding agents: commit a compiling skeleton of named `HOLE(id)` stubs as the design review, then fill holes outside-in with the build never red; `grep` is the progress bar. |
+| [`test-ratchet-development`](./test-ratchet-development) | Staged delivery for coding agents: each stage opens with one failing acceptance test; the suite only ever tightens — no editing, weakening, or skipping tests without human sign-off. |
+| [`avoiding-ai-tells`](./avoiding-ai-tells) | Style rules that strip machine-generation signals (uniform comments, gold-plating, template READMEs, mega-commits) from agent-written code, docs, and commits so reviewers judge the work on its merits. Referenced by all three staged-delivery skills. |
+
+The three staged-delivery skills are an experiment: an identical plan/checkpoint outer loop with three different inner growth strategies. Enable **only one at a time** (their triggers overlap) and see [`evals/staged-delivery/`](./evals/staged-delivery) for the standard test task and how to run the comparison. Each has a README explaining the approach.
 
 More to come.
 
