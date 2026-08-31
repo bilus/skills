@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ---
 
+## prose-contract
+
+### [0.1.0] - 2026-08-31
+
+Initial release. A style contract for agent-written prose: actor-and-action discipline, an outline-review-expand-review-draft-verify process with reviewer sub-agents at each gate, section A machine-checkable rules (banlist, at-most-once list, transition caps, typography), section B judgment rules with bad/good pairs, and a section C leak check against the skill's own examples. Ships with a human-facing `README.md`.
+
 ## tracer-bullet-delivery
 
 ### [0.1.0] - 2026-07-25
