@@ -1,0 +1,554 @@
+[
+ {
+  "id": "S1",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "When a coding agent's model believes a file was edited but the edit never actually ran, what discipline prevents that drift?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "agent believes edit ran drift",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "verify tool result before claiming success, read the file back after editing",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "model state diverges from filesystem state, hallucinated tool call, state drift in coding agents",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "drift",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "concepts/synthetictoolresult",
+   "inbox/fractalpermissionsforagents",
+   "sources/claudecodeagenticloopanalysisnotes"
+  ],
+  "note": "Lists spread thin across harness pages; the merge favored SyntheticToolResult over ToolTrajectoryIntegrity and ClaudeCodeExecutionChecklist, which each appeared in only one list."
+ },
+ {
+  "id": "S2",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "I'm adding a new Postgres-backed app to Dokploy. How should its backups be configured and where do they go?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Dokploy Postgres backup R2",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "database backup destination bucket prefix per project schedule",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Dokploy backup conventions S3 destination Cloudflare bucket",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "Dokploy",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "dokploy/backuppolicy",
+   "entities/rybbit",
+   "dokploy"
+  ],
+  "note": "BackupPolicyInDokploy ranked first in four of five lists; strong consensus."
+ },
+ {
+  "id": "S3",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Why should a library that owns several HTTP endpoints let the application own the router?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "library HTTP handlers application owns router",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "library exposes handlers, application mounts them on its mux, do not create a server inside the library",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "inversion of control for routing, middleware and path prefix decided by the app not the package",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "router",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "inbox/gohttproutegroupmounting",
+   "analysis/ergowebsocketactorperconnection",
+   "threelayercake/httpboundary"
+  ],
+  "note": "GoHttpRouteGroupMounting led every list."
+ },
+ {
+  "id": "S4",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "What is the three-layer cake's rule for distinguishing domain errors from infrastructure errors?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "three layer cake domain errors infrastructure errors",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "MonadError for domain errors, IO exceptions for infrastructure failures",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "ReaderT pattern capability typeclasses Haskell error handling layers",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "MonadError",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "analysis/exceptionsbestpracticesvsthreelayercake",
+   "analysis/threelayercakeineffectful",
+   "threelayercake/minimalexample"
+  ],
+  "note": "TwoKindsOfErrors appeared in only two lists, so the count-first merge ranked the Snoyman reconciliation analysis above it."
+ },
+ {
+  "id": "S5",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "How can one record definition produce both a mutable runtime shape and a serialized shape in Haskell?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Haskell higher-kinded data record shapes",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "HKD record parameterized by a functor, Identity for plain values and IORef or TVar for mutable fields",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "type family over a record's fields to derive a JSON serializable variant and an in-memory variant from one declaration",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "higher-kinded",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "concepts/higherkindeddata",
+   "log/2026-w23",
+   "concepts/threekindsofdata"
+  ],
+  "note": "HigherKindedData and its weekly log entry tied on list count; the concept page won on rank in the verbatim query."
+ },
+ {
+  "id": "S6",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Screen Sharing over Tailscale hangs on macOS even though tailscale ping works. What's wrong?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Tailscale Screen Sharing macOS hangs",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "VNC to a Mac over the tailnet connects but never shows the desktop, MagicDNS or port 5900 issue",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "macOS remote desktop stuck connecting through Tailscale, MTU, DERP relay, or Bonjour discovery problem",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "Tailscale",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "tips/tailscalemacosroutesmissing",
+   "tips/newmacinstallation",
+   "analysis/claudecodelocalsessionipc"
+  ],
+  "note": "TailscaleMacosRoutesMissing led all five lists; the last two calls were retried once after a transient server error."
+ },
+ {
+  "id": "S7",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "What happens between a successful Append and a successful Flush in the object-storage log?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Append Flush object storage log",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "durability window between append acknowledgment and segment upload to S3",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "records buffered in memory before the segment is written to the object store, a crash loses unflushed records",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "Flush",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "objlog/durabilitywindow",
+   "log/2026-w36",
+   "objlog/publishprotocol"
+  ],
+  "note": "ObjlogDurabilityWindow tied with the weekly log on count and best rank and won on verbatim-query rank; the keyword call was retried once after a transient error."
+ },
+ {
+  "id": "S8",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "How does Claude Code keep a conversation resumable after compaction without replaying the entire file?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Claude Code compaction resume transcript",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "compact boundary summary message in the JSONL session file, resume reads from the last summary",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "context window compaction checkpoint, replay only the tail of the transcript on resume",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "compaction",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "analysis/claudecodetranscriptarchitecture",
+   "concepts/compactboundarycheckpoint",
+   "analysis/claudecodecontextmanagementpaths"
+  ],
+  "note": "ClaudeCodeTranscriptArchitecture ranked first in four of five lists; three calls were retried once after a transient server error."
+ },
+ {
+  "id": "S9",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "How do I set up a Go project with devbox and direnv?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "devbox direnv Go project",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "devbox.json with the go package, .envrc with use devbox, devbox generate direnv",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Nix-based development environment for the Go toolchain with direnv auto-activation",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "devbox",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "tips/goprojectwithdevbox",
+   "tips/haskellprojectwithdevbox",
+   "tips/githubactionswithdevbox"
+  ],
+  "note": "GoProjectWithDevbox led four lists."
+ },
+ {
+  "id": "S10",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Which durable-execution system snapshots the actual execution state instead of replaying a journal?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "durable execution snapshot state not journal replay",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Temporal event history replay versus continuation or process memory snapshot for workflow recovery",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "workflow engine checkpoints the running program state so no deterministic replay is required",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "durable execution",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "sources/temporal",
+   "analysis/continuationsacrossanetwork",
+   "concepts/captureversusreplay"
+  ],
+  "note": "Golem, the page that answers the question, appeared in only one list (rank 1), so the count-first merge pushed it out of the top three."
+ },
+ {
+  "id": "S11",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "What's the argument that ugly or convoluted AI-generated code is acceptable inside a component?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "good AI slop inside component",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "AI-generated code quality only matters at the interface, internals can be messy if the boundary is clean",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "bricks and mortar: convoluted code inside a brick is fine when the mortar between bricks is reviewed",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "slop",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "concepts/imaginedunderstandingisenough",
+   "concepts/purityboundaryisaninterface",
+   "analysis/aicodebehindaboundary"
+  ],
+  "note": "AiCodeBehindABoundary landed third because ImaginedUnderstandingIsEnough outranked it in three lists; full-text 'slop' returned nothing."
+ },
+ {
+  "id": "S12",
+  "queries": [
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "gofumpt is not running in Doom Emacs for go-ts-mode buffers. How do I fix it?",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "gofumpt Doom Emacs go-ts-mode",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "apheleia formatter not applied in go-ts-mode, add the mode to apheleia-mode-alist",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_semantic_search",
+    "args": {
+     "query": "Emacs format on save for Go tree-sitter buffers when the formatter is only configured for go-mode",
+     "limit": 5
+    }
+   },
+   {
+    "tool": "wiki_search",
+    "args": {
+     "query": "gofumpt",
+     "limit": 5
+    }
+   }
+  ],
+  "top3": [
+   "tips/doomemacsgofumptwithgotsmode",
+   "tips/haskellprojectwithdevbox",
+   "tips/doomemacslspplistshashtablemismatch"
+  ],
+  "note": "DoomEmacsGofumptWithGoTsMode led all five lists."
+ }
+]

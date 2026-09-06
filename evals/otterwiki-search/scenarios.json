@@ -1,0 +1,14 @@
+[
+ {"id":"S1","type":"conceptual","question":"When a coding agent's model believes a file was edited but the edit never actually ran, what discipline prevents that drift?","primary":["concepts/tooltrajectoryintegrity"],"alt":["concepts/transcriptsafecorrection","concepts/synthetictoolresult"]},
+ {"id":"S2","type":"task","question":"I'm adding a new Postgres-backed app to Dokploy. How should its backups be configured and where do they go?","primary":["dokploy/backuppolicy"],"alt":[]},
+ {"id":"S3","type":"conceptual","question":"Why should a library that owns several HTTP endpoints let the application own the router?","primary":["inbox/gohttproutegroupmounting"],"alt":[]},
+ {"id":"S4","type":"lexical","question":"What is the three-layer cake's rule for distinguishing domain errors from infrastructure errors?","primary":["threelayercake/twokindsoferrors"],"alt":["threelayercake/domainoutcomes"]},
+ {"id":"S5","type":"conceptual","question":"How can one record definition produce both a mutable runtime shape and a serialized shape in Haskell?","primary":["concepts/higherkindeddata"],"alt":[]},
+ {"id":"S6","type":"task","question":"Screen Sharing over Tailscale hangs on macOS even though tailscale ping works. What's wrong?","primary":["tips/tailscalemacosroutesmissing"],"alt":[]},
+ {"id":"S7","type":"conceptual","question":"What happens between a successful Append and a successful Flush in the object-storage log?","primary":["objlog/durabilitywindow"],"alt":["objlog/publishprotocol","objlog"]},
+ {"id":"S8","type":"conceptual","question":"How does Claude Code keep a conversation resumable after compaction without replaying the entire file?","primary":["concepts/compactboundarycheckpoint","analysis/claudecodetranscriptarchitecture"],"alt":["concepts/appendonlylogvslogicalreplay","analysis/claudecodetranscriptloadshaping","concepts/preservedsegmentrelinking"]},
+ {"id":"S9","type":"lexical","question":"How do I set up a Go project with devbox and direnv?","primary":["tips/goprojectwithdevbox"],"alt":["tips/githubactionswithdevbox"]},
+ {"id":"S10","type":"conceptual","question":"Which durable-execution system snapshots the actual execution state instead of replaying a journal?","primary":["sources/golem"],"alt":["concepts/captureversusreplay","analysis/continuationsacrossanetwork"]},
+ {"id":"S11","type":"conceptual","question":"What's the argument that ugly or convoluted AI-generated code is acceptable inside a component?","primary":["analysis/aicodebehindaboundary"],"alt":["inbox/bricksandmortarforai","concepts/immutablecomponentlibrary","analysis/bricksandmortarphilosophy"]},
+ {"id":"S12","type":"task","question":"gofumpt is not running in Doom Emacs for go-ts-mode buffers. How do I fix it?","primary":["tips/doomemacsgofumptwithgotsmode"],"alt":[]}
+]

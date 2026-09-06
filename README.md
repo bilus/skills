@@ -14,8 +14,11 @@ Each skill is a self-contained directory teaching Claude a specific pattern, wor
 | [`test-ratchet-development`](./test-ratchet-development) | Staged delivery for coding agents: each stage opens with one failing acceptance test; the suite only ever tightens — no editing, weakening, or skipping tests without human sign-off. |
 | [`avoiding-ai-tells`](./avoiding-ai-tells) | Style rules that strip machine-generation signals (uniform comments, gold-plating, template READMEs, mega-commits) from agent-written code, docs, and commits so reviewers judge the work on its merits. Referenced by all three staged-delivery skills. |
 | [`prose-contract`](./prose-contract) | A strict style contract for agent-written prose: outline-review-draft-verify process, actor discipline, a banlist and transition caps checked by script, and 28 judgment rules checked by a reviewer sub-agent. The prose counterpart to `avoiding-ai-tells`. |
+| [`personal/otterwiki-search`](./personal/otterwiki-search) | A query procedure for my OtterWiki over its MCP server, where retrieval is BM25 plus vector fusion with no reranker: two to four terms in the answer page's own vocabulary, one targeted follow-up, measured at 18 of 18 on [`evals/otterwiki-search/`](./evals/otterwiki-search). |
 
 The three staged-delivery skills are an experiment: an identical plan/checkpoint outer loop with three different inner growth strategies. Enable **only one at a time** (their triggers overlap) and see [`evals/staged-delivery/`](./evals/staged-delivery) for the standard test task and how to run the comparison. Each has a README explaining the approach.
+
+`personal/` holds skills tied to my own setup (one wiki, one server, one machine). They are not packaged as release assets; clone the collection and Claude Code discovers them in place.
 
 More to come.
 

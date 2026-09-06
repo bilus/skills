@@ -1,0 +1,8 @@
+[
+ {"id":"H1","type":"conceptual","question":"What's the safe way to acquire and release a resource in Haskell when the thread might receive an asynchronous exception?","primary":["concepts/bracketpattern"],"alt":["tips/haskellexceptionhandling","sources/snoymansafeexceptionhandling","concepts/syncvsasyncexceptions"]},
+ {"id":"H2","type":"task","question":"macOS storage numbers in System Settings contradict each other. How do I find where the disk space actually went?","primary":["tips/diagnosingmacosdiskusage"],"alt":[]},
+ {"id":"H3","type":"conceptual","question":"Why can't a Go program look up a reflect.Type from a type name string at runtime?","primary":["concepts/gotypebynameatruntime"],"alt":["tips/godecodejsonbyregisteredtypename","analysis/ergoedftyperegistry"]},
+ {"id":"H4","type":"conceptual","question":"What does it mean to classify an application's data by how hard it would be to recreate?","primary":["concepts/threekindsofdata"],"alt":[]},
+ {"id":"H5","type":"task","question":"How do I give a coding agent live credentials without keeping plaintext secrets in dotfiles?","primary":["tips/direnvsecretswithonepassword"],"alt":[]},
+ {"id":"H6","type":"conceptual","question":"One page renders two instances of the same component and a click goes to the wrong one. What's the fix?","primary":["analysis/livetemplcomponentinstanceidentity"],"alt":["analysis/livetemplstructuralidentity"]}
+]

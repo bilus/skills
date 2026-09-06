@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ---
 
+## otterwiki-search
+
+### [0.1.0] - 2026-09-06
+
+Initial release. Query procedure for the OtterWiki MCP tools under fusion-only retrieval with no reranker: two to four terms in the answer page's own vocabulary, stop at a rank-1 answer, one targeted follow-up (a snippet link, `wiki_list` by prefix or tag, or one rephrasing), never a vote-count merge. Measured at 18 of 18 on `evals/otterwiki-search/`. Lives under `personal/` because it is tied to one wiki and one server. Ships with a human-facing `README.md`.
+
 ## prose-contract
 
 ### [0.1.0] - 2026-08-31
