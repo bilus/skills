@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ---
 
+## svg-diagrams
+
+### [0.1.0] - 2026-09-14
+
+Initial release. System diagrams as a script-built SVG: components and connections listed as data before any layout, a grid chosen from the connection count, barriers drawn as spanning panels rather than boxes in a row, out-of-band lines dashed and routed around them, and a style contract covering palette, type scale, arrowheads, numbered badges and the label backing that keeps text readable over a line. Ships `scripts/svgkit.py` with the primitives and a human-facing `README.md`.
+
 ## otterwiki-search
 
 ### [0.1.0] - 2026-09-06
