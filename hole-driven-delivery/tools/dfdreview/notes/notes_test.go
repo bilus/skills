@@ -30,6 +30,7 @@ func TestRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := &notes.Notes{
+		Title:    "Plan",
 		Brief:    "A brief\nover two lines.",
 		Metaphor: "A light table.\n\n### Rules\n\nBoth sheets match.",
 		OldScore: &notes.Card{Columns: []string{"live_range", "read_distance"}, Values: []string{"3", "1"}},

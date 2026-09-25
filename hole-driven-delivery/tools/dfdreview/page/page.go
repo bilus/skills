@@ -1,7 +1,13 @@
 // Package page writes the review page from its data.
 package page
 
-import "io"
+import (
+	_ "embed"
+	"encoding/json"
+	"html"
+	"io"
+	"strings"
+)
 
 // Data is everything the review page shows.
 type Data struct {
@@ -9,7 +15,6 @@ type Data struct {
 	Diagrams []Diagram       `json:"diagrams"`
 	Files    map[string]File `json:"files"`
 	Decls    map[string]Decl `json:"decls"`
-	Types    Versions        `json:"types"`
 	Terms    Versions        `json:"terms"`
 	Changed  []Changed       `json:"changed"`
 	Brief    string          `json:"brief"`
@@ -19,13 +24,14 @@ type Data struct {
 	Report   string          `json:"report"`
 }
 
-// Diagram is one tab: a diagram's views, each an SVG document or "".
+// Diagram is one tab: a diagram's views, each an SVG document or "", and its items' types.
 type Diagram struct {
-	Number string `json:"number"`
-	Title  string `json:"title"`
-	Before string `json:"before"`
-	Diff   string `json:"diff"`
-	After  string `json:"after"`
+	Number string   `json:"number"`
+	Title  string   `json:"title"`
+	Before string   `json:"before"`
+	Diff   string   `json:"diff"`
+	After  string   `json:"after"`
+	Types  Versions `json:"types"`
 }
 
 // File is a source file in both versions, with its diff; nil where it does not exist.
@@ -48,7 +54,7 @@ type Place struct {
 	End   int    `json:"end"`
 }
 
-// Versions holds a map from each version, such as the types of the flow label items.
+// Versions holds a map from each version, such as the vocabulary's definitions.
 type Versions struct {
 	Before map[string]string `json:"before"`
 	After  map[string]string `json:"after"`
@@ -66,7 +72,17 @@ type Card struct {
 	Values  []string `json:"values"`
 }
 
+//go:embed page.html
+var template string
+
 // Write writes the review page for d to w.
+// The data sits in a script element as JSON, which escapes every "<".
 func Write(w io.Writer, d Data) error {
-	panic("HOLE(5): the embedded page with d as JSON, safe inside a script element")
+	blob, err := json.Marshal(d)
+	if err != nil {
+		return err
+	}
+	r := strings.NewReplacer("{{TITLE}}", html.EscapeString(d.Title), "{{DATA}}", string(blob))
+	_, err = io.WriteString(w, r.Replace(template))
+	return err
 }

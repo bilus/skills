@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+</head>
+<body>
+<div id="app"></div>
+<script id="data" type="application/json">{{DATA}}</script>
+<script>
+(function () {
+  var data = JSON.parse(document.getElementById("data").textContent);
+  var app = document.getElementById("app");
+  data.diagrams.forEach(function (d) {
+    var h = document.createElement("h2");
+    h.textContent = d.title;
+    app.appendChild(h);
+    ["before", "diff", "after"].forEach(function (view) {
+      if (d[view]) {
+        var div = document.createElement("div");
+        div.innerHTML = d[view];
+        app.appendChild(div);
+      }
+    });
+  });
+})();
+</script>
+</body>
+</html>

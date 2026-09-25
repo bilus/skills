@@ -9,8 +9,9 @@ import (
 	"strings"
 )
 
-// Notes are the plan's brief and metaphor, the score cards and the report.
+// Notes are the plan's title, brief and metaphor, the score cards and the report.
 type Notes struct {
+	Title              string // the plan's first heading
 	Brief, Metaphor    string // sections of the plan
 	OldScore, NewScore *Card  // nil when not given
 	Report             string
@@ -30,6 +31,7 @@ func Read(plan, oldScore, newScore, report string) (*Notes, error) {
 		if err != nil {
 			return nil, err
 		}
+		n.Title = title(string(src))
 		n.Brief = section(string(src), "The change in brief")
 		n.Metaphor = section(string(src), "Metaphor")
 	}
@@ -80,6 +82,16 @@ func section(src, title string) string {
 		}
 	}
 	return strings.TrimSpace(strings.Join(body, "\n"))
+}
+
+// title returns the text of the first top-level heading of a Markdown text.
+func title(src string) string {
+	for _, line := range strings.Split(src, "\n") {
+		if level, name, ok := heading(line); ok && level == 1 {
+			return name
+		}
+	}
+	return ""
 }
 
 // heading reads a Markdown heading line such as "## Metaphor".

@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os/exec"
 	"path"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -31,7 +32,8 @@ type Place struct {
 }
 
 // Read indexes the declarations of both versions and the files changed since the base.
-// The page shows the files of the declarations that the boxes name, and every changed file.
+// The page shows the files of the declarations that the boxes and the type comments
+// name, and every changed file.
 func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	before, after, err := r.GoFiles()
 	if err != nil {
@@ -62,9 +64,13 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	}
 	for _, dg := range d.Diagrams {
 		for _, src := range []repo.Text{dg.Source.Before, dg.Source.After} {
+			keys := typeNames(dfdtext.Types(src.Content))
 			for _, ref := range dfdtext.References(src.Content) {
+				keys = append(keys, Key(ref))
+			}
+			for _, key := range keys {
 				for _, decls := range []map[string]Place{idx.Before, idx.After} {
-					if p, ok := decls[Key(ref)]; ok {
+					if p, ok := decls[key]; ok {
 						show(p.File)
 					}
 				}
@@ -76,6 +82,17 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	}
 	return idx, nil
 }
+
+// typeNames returns the declaration keys of the qualified names in types, such as lib.Item in []*lib.Item.
+func typeNames(types map[string]string) []string {
+	var keys []string
+	for _, t := range types {
+		keys = append(keys, qualifiedType.FindAllString(t, -1)...)
+	}
+	return keys
+}
+
+var qualifiedType = regexp.MustCompile(`\b[a-z][a-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*`)
 
 // Key returns the declaration key of a reference: its package's name and its name.
 func Key(ref dfdtext.Reference) string {
