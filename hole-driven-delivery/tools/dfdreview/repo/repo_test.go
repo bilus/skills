@@ -131,6 +131,12 @@ func TestChanged(t *testing.T) {
 			}
 		}
 	}
+	if edited := changed[0].Content; edited.Before.Content != "old\n" || edited.After.Content != "new\n" {
+		t.Errorf("edited.go = %+v", edited)
+	}
+	if fresh, gone := changed[1].Content, changed[2].Content; fresh.Before.Found || fresh.After.Content != "fresh\n" || gone.After.Found || gone.Before.Content != "gone\n" {
+		t.Errorf("fresh.go = %+v, gone.go = %+v", fresh, gone)
+	}
 	none, err := open(t, filepath.Join(g.Dir, "tool"), "").Changed()
 	if err != nil || len(none) != 0 {
 		t.Errorf("without a base: %v, %v; want no changes", none, err)

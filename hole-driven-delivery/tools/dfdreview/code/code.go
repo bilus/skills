@@ -2,7 +2,17 @@
 package code
 
 import (
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os/exec"
+	"path"
+	"sort"
+	"strings"
+
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/design"
+	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/dfdtext"
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/repo"
 )
 
@@ -21,12 +31,124 @@ type Place struct {
 }
 
 // Read indexes the declarations of both versions and the files changed since the base.
+// The page shows the files of the declarations that the boxes name, and every changed file.
 func Read(r *repo.Repo, d *design.Design) (*Index, error) {
-	panic("HOLE(4): the files of the referenced declarations and every changed file, with go list std")
+	before, after, err := r.GoFiles()
+	if err != nil {
+		return nil, err
+	}
+	idx := &Index{Files: map[string]repo.Pair{}}
+	if idx.Before, err = Declarations(before); err != nil {
+		return nil, fmt.Errorf("at the base: %w", err)
+	}
+	if idx.After, err = Declarations(after); err != nil {
+		return nil, err
+	}
+	if idx.Std, err = stdPackages(); err != nil {
+		return nil, err
+	}
+	if idx.Changed, err = r.Changed(); err != nil {
+		return nil, err
+	}
+	show := func(file string) {
+		p := idx.Files[file]
+		if content, ok := before[file]; ok {
+			p.Before = repo.Text{Content: content, Found: true}
+		}
+		if content, ok := after[file]; ok {
+			p.After = repo.Text{Content: content, Found: true}
+		}
+		idx.Files[file] = p
+	}
+	for _, dg := range d.Diagrams {
+		for _, src := range []repo.Text{dg.Source.Before, dg.Source.After} {
+			for _, ref := range dfdtext.References(src.Content) {
+				for _, decls := range []map[string]Place{idx.Before, idx.After} {
+					if p, ok := decls[Key(ref)]; ok {
+						show(p.File)
+					}
+				}
+			}
+		}
+	}
+	for _, c := range idx.Changed {
+		idx.Files[c.Path] = c.Content
+	}
+	return idx, nil
+}
+
+// Key returns the declaration key of a reference: its package's name and its name.
+func Key(ref dfdtext.Reference) string {
+	return path.Base(ref.Qualifier) + "." + ref.Name
 }
 
 // Declarations returns the top-level declarations of files, keyed like "analyze.sumTypes".
 // The key joins the package name and the identifier; the first file in path order wins.
+// Methods are left out, since a box names a method by its type.
 func Declarations(files map[string]string) (map[string]Place, error) {
-	panic("HOLE(4): functions, types, variables and constants, by package clause; a parse error names its file")
+	paths := make([]string, 0, len(files))
+	for p := range files {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	fset := token.NewFileSet()
+	decls := map[string]Place{}
+	for _, p := range paths {
+		f, err := parser.ParseFile(fset, p, files[p], parser.ParseComments|parser.SkipObjectResolution)
+		if err != nil {
+			return nil, err
+		}
+		add := func(name string, start, end token.Pos, doc *ast.CommentGroup) {
+			if doc != nil {
+				start = doc.Pos()
+			}
+			key := f.Name.Name + "." + name
+			if _, taken := decls[key]; !taken {
+				decls[key] = Place{File: p, Start: fset.Position(start).Line, End: fset.Position(end).Line}
+			}
+		}
+		for _, d := range f.Decls {
+			switch d := d.(type) {
+			case *ast.FuncDecl:
+				if d.Recv == nil {
+					add(d.Name.Name, d.Pos(), d.End(), d.Doc)
+				}
+			case *ast.GenDecl:
+				for _, spec := range d.Specs {
+					var names []*ast.Ident
+					var doc *ast.CommentGroup
+					switch s := spec.(type) {
+					case *ast.TypeSpec:
+						names, doc = []*ast.Ident{s.Name}, s.Doc
+					case *ast.ValueSpec:
+						names, doc = s.Names, s.Doc
+					default:
+						continue
+					}
+					// In a group, a declaration is its own spec; alone, it is the whole declaration.
+					start, end := spec.Pos(), spec.End()
+					if !d.Lparen.IsValid() {
+						start, end, doc = d.Pos(), d.End(), d.Doc
+					}
+					for _, n := range names {
+						add(n.Name, start, end, doc)
+					}
+				}
+			}
+		}
+	}
+	return decls, nil
+}
+
+// stdPackages returns the import paths of the standard library.
+func stdPackages() (map[string]bool, error) {
+	out, err := exec.Command("go", "list", "std").Output()
+	if err != nil {
+		return nil, fmt.Errorf("go list std: %w", err)
+	}
+	std := map[string]bool{}
+	for _, p := range strings.Fields(string(out)) {
+		std[p] = true
+	}
+	return std, nil
 }

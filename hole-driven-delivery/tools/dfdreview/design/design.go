@@ -17,6 +17,7 @@ import (
 type Design struct {
 	Diagrams   []Diagram // the top diagram first, then the child diagrams by number
 	Vocabulary repo.Pair
+	Base       string // the base revision, "" when there is nothing to compare against
 }
 
 // Diagram is one dfd file of the design, in both versions.
@@ -37,7 +38,7 @@ func Read(r *repo.Repo, top, vocabulary string) (*Design, error) {
 	if !src.Before.Found && !src.After.Found {
 		return nil, fmt.Errorf("%s: no such diagram at the base or in the working tree", top)
 	}
-	d := &Design{Diagrams: []Diagram{{Path: top, Title: "Overview", Source: src}}}
+	d := &Design{Diagrams: []Diagram{{Path: top, Title: "Overview", Source: src}}, Base: r.Base()}
 	children, err := childFiles(r, top)
 	if err != nil {
 		return nil, err
@@ -62,6 +63,19 @@ func Read(r *repo.Repo, top, vocabulary string) (*Design, error) {
 	}
 	return d, nil
 }
+
+// Terms reads a vocabulary's "- term: definition" lines, by term.
+func Terms(vocabulary string) map[string]string {
+	terms := map[string]string{}
+	for _, line := range strings.Split(vocabulary, "\n") {
+		if m := termLine.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
+			terms[m[1]] = m[2]
+		}
+	}
+	return terms
+}
+
+var termLine = regexp.MustCompile(`^- ([^:]+?): (.+)$`)
 
 // childFiles maps the number of each child diagram of top to its path, from either version.
 func childFiles(r *repo.Repo, top string) (map[string]string, error) {

@@ -39,13 +39,13 @@ Package `dfdreview`, the command's library:
 - `func Build(opts Options) error`: Build writes the review page that opts describes.
 - `func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index) error`: reads the notes, assembles the page data and writes the page.
 
-Package `repo`: `type Repo`, `func Open(dir, base string) (*Repo, error)`, and the methods `Read(path) (Pair, error)`, `Names(dir) ([]string, error)`, `GoFiles() (before, after map[string]string, err error)` and `Changed() ([]Change, error)`, with the types `Text`, `Pair` and `Change`.
+Package `repo`: `type Repo`, `func Open(dir, base string) (*Repo, error)`, and the methods `Base() string`, `Read(path) (Pair, error)`, `Names(dir) ([]string, error)`, `GoFiles() (before, after map[string]string, err error)` and `Changed() ([]Change, error)`, with the types `Text`, `Pair` and `Change`; a change holds its diff and both versions of the file.
 
 Package `dfdtext`, dfd source text line by line: `Link(src, Linker) (string, map[string]string)`, `References(src) []Reference`, `Types(src) map[string]string`, `Titles(src) map[string]string`, `Align(before, after) []Op` and `Patch(path, ops, before, after) string`, with the types `Linker`, `CodeFn`, `Reference` and `Op`.
 
-Package `design`: `type Design`, `type Diagram`, `func Read(r *repo.Repo, top, vocabulary string) (*Design, error)`.
+Package `design`: `type Design` (with the base revision), `type Diagram`, `func Read(r *repo.Repo, top, vocabulary string) (*Design, error)`, and `func Terms(vocabulary string) map[string]string`.
 
-Package `code`: `type Index`, `type Place`, `func Read(r *repo.Repo, d *design.Design) (*Index, error)`, `func Declarations(files map[string]string) (map[string]Place, error)`.
+Package `code`: `type Index`, `type Place`, `func Read(r *repo.Repo, d *design.Design) (*Index, error)`, `func Declarations(files map[string]string) (map[string]Place, error)`, and `func Key(dfdtext.Reference) string`.
 
 Package `draw`: `type View`, `func Views(d *design.Design, c *code.Index, dfd string) ([]View, error)`, and the steps of process 4: `align`, `link` and `render`, with the type `sheet`.
 

@@ -30,9 +30,10 @@ type Pair struct {
 
 // Change is a file changed since the base, with its unified diff.
 type Change struct {
-	Path   string // relative to the code directory
-	Status string // "added", "modified" or "deleted"
-	Diff   string
+	Path    string // relative to the code directory
+	Status  string // "added", "modified" or "deleted"
+	Diff    string
+	Content Pair // a binary file's versions hold no text
 }
 
 // Repo reads the files of a code directory in both versions.
@@ -65,6 +66,9 @@ func Open(dir, base string) (*Repo, error) {
 	}
 	return &Repo{top: top, dir: filepath.ToSlash(rel), base: base}, nil
 }
+
+// Base returns the base revision, "" when the page shows the working tree alone.
+func (r *Repo) Base() string { return r.base }
 
 // Read returns the file at path in both versions.
 // Without a base, Before is not found.
@@ -205,11 +209,27 @@ func (r *Repo) Changed() ([]Change, error) {
 		case "D":
 			status = "deleted"
 		}
-		diff, err := git(r.top, "diff", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", r.base, "--", fields[i+1])
+		p := fields[i+1]
+		diff, err := git(r.top, "diff", "--no-color", "--no-ext-diff", "--src-prefix=a/", "--dst-prefix=b/", r.base, "--", p)
 		if err != nil {
 			return nil, err
 		}
-		changes = append(changes, Change{Path: r.inCode(fields[i+1]), Status: status, Diff: diff})
+		var content Pair
+		if status != "added" {
+			before, err := r.cat([]string{p})
+			if err != nil {
+				return nil, err
+			}
+			content.Before = text(before[p])
+		}
+		if status != "deleted" {
+			after, err := os.ReadFile(filepath.Join(r.top, filepath.FromSlash(p)))
+			if err != nil {
+				return nil, err
+			}
+			content.After = text(string(after))
+		}
+		changes = append(changes, Change{Path: r.inCode(p), Status: status, Diff: diff, Content: content})
 	}
 	out, err = git(r.top, "ls-files", "--others", "--exclude-standard", "-z", "--", treeArg(r.dir))
 	if err != nil {
@@ -223,10 +243,18 @@ func (r *Repo) Changed() ([]Change, error) {
 		if err != nil {
 			return nil, err
 		}
-		changes = append(changes, Change{Path: r.inCode(p), Status: "added", Diff: added(p, string(content))})
+		changes = append(changes, Change{Path: r.inCode(p), Status: "added", Diff: added(p, string(content)), Content: Pair{After: text(string(content))}})
 	}
 	sort.Slice(changes, func(i, j int) bool { return changes[i].Path < changes[j].Path })
 	return changes, nil
+}
+
+// text returns a found version of a file, without the content of a binary file.
+func text(content string) Text {
+	if strings.IndexByte(content, 0) >= 0 {
+		return Text{Found: true}
+	}
+	return Text{Content: content, Found: true}
 }
 
 // added returns the diff that creates a file with content.
