@@ -1,6 +1,11 @@
 // Package dfdtext reads and links the text of dfd sources, line by line.
 package dfdtext
 
+import (
+	"regexp"
+	"strings"
+)
+
 // Reference is a qualified name among a box's references, such as analyze.sumTypes.
 type Reference struct {
 	Qualifier string // a package name, or an import path
@@ -29,13 +34,38 @@ func References(src string) []Reference {
 }
 
 // Types returns the type of each item, from the "# type: item = type" comments of src.
+// A later comment for an item replaces an earlier one.
 func Types(src string) map[string]string {
-	panic("HOLE(2): one entry per comment; a later comment for an item replaces an earlier one")
+	types := map[string]string{}
+	for _, line := range strings.Split(src, "\n") {
+		if m := typeComment.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
+			types[m[1]] = m[2]
+		}
+	}
+	return types
 }
 
+var typeComment = regexp.MustCompile(`^#\s*type:\s*(.+?)\s*=\s*(.+?)$`)
+
 // Titles returns the action line of each process with an explicit number in src, by number.
+// The action line is the first line of the box, without its number.
 func Titles(src string) map[string]string {
-	panic("HOLE(2): the first line of each numbered box, without its number and alias")
+	lines := strings.Split(src, "\n")
+	titles := map[string]string{}
+	for _, e := range elements(lines) {
+		if e.kind != process {
+			continue
+		}
+		first := e.spans[0]
+		m := numbered.FindStringSubmatch(lines[first.line][first.start:first.end])
+		if m == nil {
+			continue
+		}
+		if _, seen := titles[m[1]]; !seen {
+			titles[m[1]] = strings.TrimSpace(m[2])
+		}
+	}
+	return titles
 }
 
 // Unified returns a patch from before to after that holds the whole file as context.

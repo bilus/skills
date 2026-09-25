@@ -1,6 +1,6 @@
 # dfdreview, the review page builder
 
-dfdreview builds the review page of hole-driven delivery: the leveled design and the code of a change, each before the stage, as a diff and after it, with the score cards, the dfdmetrics report and the plan's brief.
+dfdreview builds the review page of hole-driven delivery: the leveled design and the code of a change, each before the stage, as a diff and after it, with the score cards, the dfdmetrics report and the plan's brief and metaphor.
 
 ## Requirements
 
@@ -19,7 +19,7 @@ dfdreview builds the review page of hole-driven delivery: the leveled design and
 
 - dfdreview runs the dfd command instead of importing dfd, so it works with any dfd that has `--patch` and footnotes, and pins no dfd version.
 - dfdreview adds its links as footnotes on source lines, with a line-level reading of the dfd format, so it needs no dfd parser. A context line that the two versions read differently shows as changed.
-- The code is the directory above the design's directory, and only its Go files are indexed.
+- The code directory is the directory above the design's directory, and dfdreview indexes only its Go files.
 - The page loads highlight.js from cdnjs, like the page builder it replaces.
 - The review page for this plan waits for the builder itself: the first page comes from stage 5.
 
@@ -72,7 +72,7 @@ Goal: dfdreview reads the design, the vocabulary, the notes and every file of bo
 Requirement: 1, 8, 9.
 Dependencies: stage 1.
 Holes: 2 repo.Open, 2 repo.Repo.Read, 2 repo.Repo.Names, 2 repo.Repo.GoFiles, 2 repo.Repo.Changed, 2 dfdtext.Types, 2 dfdtext.Titles, 2 design.Read, 2 notes.Read.
-Acceptance: tests on a temporary git repository for a changed, a new, a deleted and an untracked file, and for the plan's sections and the score cards.
+Acceptance: tests on a temporary git repository for a modified, a new, a deleted and an untracked file, and for the plan's sections and the score cards.
 Size: 250 lines.
 
 ### Stage 3: linking and diffs

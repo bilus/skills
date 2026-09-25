@@ -23,7 +23,7 @@ func Views(d *design.Design, c *code.Index, dfd string) ([]View, error) {
 // linked is the design's diagrams with their sources linked in both versions.
 type linked []design.Diagram
 
-// link links each version of each diagram, and returns the footnotes the links use.
+// link links each version of each diagram, and returns the footnote definitions the links use.
 func link(d *design.Design, c *code.Index) (linked, map[string]string) {
 	panic("HOLE(4): dfdtext.Link with each version's types and terms; references resolve to code or pkg.go.dev")
 }

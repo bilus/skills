@@ -8,13 +8,13 @@
  (repo.Open)]
 > repository, options
 [2. Read the design in both versions
- with its vocabulary and arrow types
+ with its vocabulary
  (design.Read)]
 > design, repository
 [3. Index the declarations and the changed files
  so each reference finds its code
  (code.Read)]
-> design, code, options
+> design, code index, options
 [4. Draw each diagram before, as a diff and after
  with links to code, types and terms
  (draw.Views)]
@@ -22,7 +22,7 @@
 [5. Read the notes
  from the plan, the score cards and the report
  (notes.Read)]
-> views, design, code, notes
+> views, design, code index, notes
 [6. Write the page
  (dfdreview.writePage)]
 > review page
@@ -31,7 +31,7 @@
 # type: options = dfdreview.Options
 # type: repository = *repo.Repo
 # type: design = *design.Design
-# type: code = *code.Index
+# type: code index = *code.Index
 # type: views = []draw.View
 # type: notes = *notes.Notes
 # type: review page = HTML file
