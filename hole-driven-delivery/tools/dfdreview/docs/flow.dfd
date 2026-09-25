@@ -1,0 +1,37 @@
+# dfdreview builds the review page of a leveled design at a stage boundary.
+# By hand: dfd --box 300x150 --per-row 5 --number docs/flow.dfd -o flow.svg
+
+{Agent at a stage boundary}
+> options
+[1. Open the repository
+ to read each file in both versions
+ (repo.Open)]
+> repository, options
+[2. Read the design in both versions
+ with its vocabulary and arrow types
+ (design.Read)]
+> design, repository
+[3. Index the declarations and the changed files
+ so each reference finds its code
+ (code.Read)]
+> design, code, options
+[4. Draw each diagram before, as a diff and after
+ with links to code, types and terms
+ (draw.Views)]
+> views, options
+[5. Read the notes
+ from the plan, the score cards and the report
+ (notes.Read)]
+> views, design, code, notes
+[6. Write the page
+ (dfdreview.writePage)]
+> review page
+{Reviewer}
+
+# type: options = dfdreview.Options
+# type: repository = *repo.Repo
+# type: design = *design.Design
+# type: code = *code.Index
+# type: views = []draw.View
+# type: notes = *notes.Notes
+# type: review page = HTML file
