@@ -1,0 +1,30 @@
+design flow.dfd: 2 diagrams, 8 boxes
+
+private items
+  Page file: review page  writers 5  readers -
+
+pressure
+  flow.dfd    max 0 in 4 gaps, first between 1 and 2
+  flow.4.dfd  max 0 in 2 gaps, first between 4.1 and 4.2
+
+findings
+  dead item  Page file: review page
+
+design packages
+  flow.dfd, depth 0    code, design, dfdreview, draw, repo
+  flow.4.dfd, depth 1  draw
+
+totals
+  shared items by level                               none
+  private items                                       1
+  unlabeled arrow                                     0
+  dead item                                           1
+  orphan item                                         0
+  read before write                                   0
+  arrow candidate                                     0
+  unmatched summary                                   0
+  missing summary                                     0
+  summary above home                                  0
+  mixed box                                           0
+  mixed diagram                                       0
+  diagrams with two or more design packages by depth  0: 1
