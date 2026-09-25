@@ -1,148 +1,249 @@
 ---
 name: hole-driven-delivery
-description: Use when implementing any feature, service, or multi-step coding task, before writing any code — including when the user asks for incremental delivery, small PRs, reviewable chunks, or "build X". Delivers work as a compiling skeleton full of named holes that are filled one at a time under a build-always-green invariant, halting for human review at every stage boundary. If there is even a 1% chance a coding task spans more than one edit, use this skill.
+description: Use when implementing any feature, service, or multi-step coding task, before writing any code, including when the user asks for incremental delivery, small PRs, reviewable chunks, a design review, or "build X". Use it for any coding task that may span more than one edit.
 ---
 
-# Hole-Driven Delivery
+# Hole-driven delivery
 
-You deliver code the way typed-hole programmers do: first commit the complete shape of the change — every type, every signature, every module wired together, every body a named hole — then fill holes one at a time, letting the compiler and the tests tell you what each hole must be. The skeleton commit IS the design review. The hole count IS the progress bar. Every stage is a one-sentence claim a human can verify in under an hour. You halt at every stage boundary and wait for review.
+You deliver a change as a sequence of reviewed stages. First you and your human partner agree on the requirements, the vocabulary and a leveled data flow design. Then you commit the whole shape of the code as a compiling skeleton, with every body a named hole, and you fill the holes one at a time. The compiler's errors and the tests constrain each hole's body. The design comes before the code: each function takes its shape from the diagram, and a change of shape starts in the diagram. At every stage boundary you rebuild a review page with the design, links into the code and a score, and you halt until your human partner approves the stage.
 
-Announce at start: "Using hole-driven-delivery: plan → typechecked skeleton → fill holes outside-in, halting at every stage boundary." Create a todo per stage.
+Announce at start: "Using hole-driven-delivery: requirements, vocabulary and design, then a typechecked skeleton, then holes filled outside-in, halting at every stage boundary with a review page and a score." Create one todo per outer-loop step now, and one per plan stage after approval.
 
-## The Iron Laws
-
-```
-1. NO CODE BEFORE AN APPROVED PLAN.
-2. NO IMPLEMENTATION BEFORE A GREEN SKELETON. EVERY BODY STARTS AS A NAMED HOLE.
-3. THE BUILD IS NEVER RED. ONE HOLE OPEN AT A TIME.
-4. HALT AT EVERY STAGE BOUNDARY. REVIEW IS NOT OPTIONAL.
-```
-
-Violating the letter of these laws is violating their spirit. There are no exceptions without your human partner's explicit permission.
-
-**REQUIRED BACKGROUND:** Apply the `avoiding-ai-tells` skill to everything a human will read — code, comments, tests, commit messages, handoffs, and PR descriptions. If it is not loaded, read `avoiding-ai-tells/SKILL.md` from this skill collection before writing any code. Staged delivery only works if reviewers judge each diff on its merits; machine-styled output turns them hostile before they read a line.
-
-## The Outer Loop
-
-### 1. Plan before code
-
-Write `docs/plans/<YYYY-MM-DD>-<feature>.md` before touching any source file. If no spec exists, the plan's first section IS the spec: restate the request as numbered, testable requirements and get them confirmed.
-
-Every stage in the plan states:
-
-- **Goal** — one sentence, behavior-shaped: "the system now does X, observably." (Stage 1, the skeleton, is the single exception: its goal is the design itself.)
-- **Spec reference** — which numbered requirement this stage advances.
-- **Dependencies** — which stages must land first.
-- **Holes** — the hole IDs (see below) this stage will fill.
-- **Acceptance criterion** — an executable check (test name or command) that defines done.
-- **Estimated size** — net hand-written LOC.
-
-### 2. Plan approval gate
-
-Present the plan and stop. Do not write code, scaffold projects, or "just set up the basics" while waiting. A human approves the plan; plan changes later are plan diffs, approved the same way. Never work on main/master: create a branch (or worktree) after approval, before stage 1.
-
-### 3. Execute one stage at a time
-
-Work the current stage to its acceptance criterion using the hole discipline below. Do not start stage N+1 on top of unreviewed stage N.
-
-### 4. The ledger
-
-Maintain `docs/plans/<YYYY-MM-DD>-<feature>.ledger.md`. First line: `# Ledger — plan: <plan path>`. Append one line per event: stage started, stage complete (with commit sha and remaining-hole count), hole added, hole filled, finding deferred, decision made, anything discarded. A silent discard is forbidden. After compaction or context loss, trust the ledger, `git log`, and the grep census (below) over your own recollection.
-
-### 5. Stage boundary: verify, hand off, HALT
-
-A stage is done only when every box checks:
-
-- [ ] Build, lint, typecheck, and the FULL test suite pass — run fresh, in this message, output quoted. If you haven't run the command in this message, you cannot claim it passes.
-- [ ] The stage's acceptance criterion demonstrably holds (test output or command output quoted).
-- [ ] The hole census is quoted: `grep -rn "HOLE(" <src>` output, with the delta from last stage. Every hole this stage claimed is gone; every hole it added is in the plan.
-- [ ] Single-revert safe: reverting this stage alone leaves the branch healthy.
-- [ ] No unused code without a stated reason and a follow-up stage. (Holes named in the plan are not dead code; anything else unused is.)
-- [ ] No existing test edited, weakened, skipped, or deleted. If a test seems wrong, propose the change and halt for sign-off.
-- [ ] Diff within budget: target 100–300 net hand-written LOC, hard cap 400 (generated files and lockfiles excluded but labeled). Over the cap? Split the stage — do not ask forgiveness.
-- [ ] Structure and behavior are separate: refactoring is its own stage with tests unchanged.
-
-Then write the handoff and STOP. Open a PR if the repo uses PRs; otherwise present the handoff in conversation. Do not continue until review completes.
+## The iron laws
 
 ```
-Stage: <n of N>   Type: <skeleton | fill | refactor | migration-phase>   Spec: <§x>
+1. NO CODE BEFORE AN APPROVED PLAN. THE PLAN INCLUDES THE REQUIREMENTS, THE VOCABULARY AND THE DESIGN.
+2. THE DESIGN LEADS. CHANGE THE DIAGRAM FIRST, THEN THE CODE.
+3. NO IMPLEMENTATION BEFORE A GREEN SKELETON. EVERY BODY STARTS AS A NAMED HOLE.
+4. THE BUILD IS NEVER RED. ONE HOLE OPEN AT A TIME.
+5. HALT AT EVERY STAGE BOUNDARY, WITH THE REVIEW PAGE AND THE SCORE UP TO DATE.
+```
+
+A workaround that keeps a law's wording but defeats its purpose is a violation. Only your human partner can grant an exception to a law. When your human partner lifts law 5 for a run of stages ("continue without asking"), you still do the boundary work of step 9 at every boundary.
+
+Required background: apply the `avoiding-ai-tells` skill to all human-facing text: code, comments, commit messages, handoffs and the review page. If that skill is not in your context, read `../avoiding-ai-tells/SKILL.md`, relative to this skill's directory, before writing anything.
+
+Required reference: `design.md` in this skill's directory holds the design rules, `review-page.md` the page's content, and `prompts.md` the prompts for sub-agents. `tools/dfdmetrics/README.md` defines the metric terms: home, level, live range, read distance, pressure and the findings. Read each file before the step that uses it.
+
+## Tools
+
+- dfd renders the diagrams. Install it with `go install github.com/bilus/dfd/cmd/dfd@latest`.
+- dfdmetrics measures the design and prints the score. It is a Go module of its own in this skill's `tools/dfdmetrics` directory: run `go install ./cmd/dfdmetrics` inside that directory.
+
+`go install` puts both binaries in `$(go env GOBIN)`, or in `$(go env GOPATH)/bin` when GOBIN is empty. Put that directory on the PATH, or call the binaries by their full path. Before step 1, check both: `dfd --version` prints a version, and `dfdmetrics` without arguments prints its usage.
+
+The design rules use Go's terms: types, import paths, the standard library. In another language, write the `# type:` comments in that language and the references as `module.Name`. dfdmetrics then still measures the state, but it classifies packages by Go's standard library, so check its package findings by hand.
+
+## Files
+
+| File | Holds |
+|---|---|
+| `docs/plans/<date>-<feature>.md` | the plan: requirements, questions and assumptions, the change in brief, the metaphor, the planned declarations, the stages |
+| `docs/plans/<date>-<feature>.ledger.md` | the ledger, one line per event |
+| `docs/vocabulary.md` | the terms, one per line: `- term: definition` |
+| `docs/flow.dfd`, `docs/flow.N.dfd`, `docs/flow.N.M.dfd` and so on | the leveled design: the top diagram and one child diagram per decomposed process |
+| `docs/review/scores.tsv` | the score history, one row per review |
+| `docs/review/build.go`, or another builder | the script that builds the review page, if you use one |
+| `docs/review/*.svg` | the rendered diagrams |
+| `docs/review/index.html` | the review page, rebuilt at every review |
+
+Another agent must be able to resume the work from these files, `git log` and the hole census alone.
+
+## The outer loop
+
+### 1. Requirements
+
+Write the plan before touching any source file, and create the ledger beside it (step 8). If the task has no spec, the plan's first section is the spec: numbered, testable requirements. For each question you would ask your human partner, write the question and your assumption in the plan, and continue to the gate.
+
+### 2. Vocabulary
+
+Start `docs/vocabulary.md` from the requirements, with one line per term and a definition checked against the requirements. Add the names of processes, data and stores during step 3, and the words of the metaphor during step 4. Step 5 reviews the whole vocabulary before the gate.
+
+### 3. Design
+
+Draw the design as a leveled data flow diagram in the dfd format, following `design.md`. In short:
+
+- A process box states the step's action, its purpose for the later steps (unless the outgoing arrow's label already gives it), and the functions behind it.
+- An arrow label names the input data of the next step, and a `# type:` comment gives its type.
+- A step that changes state in place writes to a store, and every write has a matching read.
+- A process with internal steps gets a child diagram. State stays inside the smallest process that uses it, and the top diagram shows only the data and the state shared across its boxes.
+- Each box references one package of the design.
+
+The code follows the diagram. Each decomposed process is one named function or method, and its body calls the functions of its child processes in the order of its diagram, so the top function reads like the top diagram. A leaf box may reference several functions, and its action line matches the doc comment of its first reference.
+
+List the planned declarations in the plan: every design-package function and type in the boxes' references and the `# type:` comments, plus the skeleton's modules and wiring, each with its signature and a one-line contract. The skeleton implements exactly this list.
+
+### 4. Metaphor
+
+Name one system metaphor in the plan: the story of the top diagram, such as a tally sheet, a compiler's passes, or a pipeline with a barrier. A technical metaphor works as well as a figurative one. A metaphor is a model, and a reader infers rules from it, as "stack" implies push and pop at one end. List the rules implied by the metaphor, and check each against the design, level by level. For each broken rule, fix the design or change the metaphor, and name the level of the first break.
+
+### 5. Reviews and score
+
+Measure the design with dfdmetrics:
+
+```sh
+dfdmetrics docs/flow.dfd
+dfdmetrics -score docs/flow.dfd
+```
+
+The first command prints the report. The second prints the score card as two tab-separated lines: a header (`live_range read_distance top_shared shared pressure package_spread findings`) and one row of values. Every value is better when lower.
+
+Then run the vocabulary review and the design review from `prompts.md`, each with a sub-agent, and give the design review the report. Decide on each finding, and record every applied, deferred or discarded finding in the ledger. If you cannot run a sub-agent, run each review yourself with the same prompt, and record that in the ledger. Then write "The change in brief" in the plan: one paragraph that describes the change in the vocabulary's terms.
+
+Record one row per review, at the plan gate and at each stage boundary, never in between:
+
+```sh
+mkdir -p docs/review
+f=docs/review/scores.tsv
+test -f "$f" || printf 'date\treview\tcommit\t%s\n' "$(dfdmetrics -score docs/flow.dfd | sed -n 1p)" > "$f"
+printf '%s\t%s\t%s\t%s\n' "$(date +%F)" plan "$(git rev-parse --short HEAD)" "$(dfdmetrics -score docs/flow.dfd | sed -n 2p)" >> "$f"
+```
+
+After the plan, the review names are `stage-1`, `stage-2` and so on. The commit column holds the reviewed tree's commit, and at the plan gate, the commit at the start of the work.
+
+Keep the columns separate: a weighted total hides the trade-offs between columns from your human partner. Every rise in a column needs a ledger line with the reason, or a design fix.
+
+The score cannot see data carried through a step that does not use it: an item that a step receives and passes on unchanged. Carrying data through a step is the alternative to a store, so list each carried item in the handoff for your human partner's judgment.
+
+### 6. Stages
+
+Every stage in the plan has these fields:
+
+- Goal: one sentence about behavior, "the system now does X, observably". Stage 1, the skeleton, is the one exception: its goal is the design itself.
+- Requirement: the number of the stage's requirement.
+- Dependencies: the stages that must land first.
+- Holes: the IDs of the holes filled in this stage (see the hole convention).
+- Acceptance: an executable check, a test name or a command, that defines done.
+- Size: the estimated net hand-written lines.
+
+The budget is 100 to 300 net hand-written lines per stage, with a hard cap of 400. Generated files, lockfiles and fixtures copied from a spec fall outside the budget, and the handoff labels them. Split any stage whose estimate exceeds the cap. If a stage's diff crosses the cap during the fill, stop at the last green commit, and halt the stage with a proposal to move the remaining holes into a new stage.
+
+### 7. Plan approval gate
+
+Build the review page for the plan (see `review-page.md`), record the first score row, then present the plan and the page, and wait for your human partner's approval. Until the skeleton commit, the page embeds the plan's planned declarations, and a function or type link shows its entry there. Do not write code, scaffold projects, or "just set up the basics" while you wait for approval.
+
+Your human partner approves the requirements, the vocabulary, the design and the stages. A later change to any of them is a plan diff, approved the same way. If the repository's instructions name a branch for all work, use it. Otherwise create a branch or worktree, never main or master. Then commit the plan, the ledger, the vocabulary, the design, the score history, the review page and its rendered diagrams, and start stage 1.
+
+### 8. The ledger
+
+Keep `docs/plans/<date>-<feature>.ledger.md`, with the first line `# Ledger, plan: <plan path>`. Append one line per event: the start of a stage (with the commit it starts from, which is the previous stage's boundary commit), the completion of a stage (with the remaining holes), a new or filled hole, a change to the design or the vocabulary, a rise in a score column (with the reason), a decision (including one on a review finding), and a discarded finding or abandoned attempt (with the reason). Every discard needs a ledger line. After compaction or context loss, trust the ledger, `git log` and the census over your recollection.
+
+### 9. Stage boundary
+
+A stage is done only when it meets every item of this checklist:
+
+- [ ] The build, lint, typecheck and full test suite all pass in a fresh run in this message, and the handoff quotes the output.
+- [ ] The stage's acceptance check passes in a fresh run, and the handoff quotes its output.
+- [ ] The handoff quotes the hole census with its change since the last stage. The census does not show any of the stage's claimed holes, and the plan lists each hole added in the stage.
+- [ ] The design matches the code. Every reference in a box resolves to a declaration, every `# type:` names a declared type, every exported function appears in some box, and the diagrams show the current form of every flow changed in this stage.
+- [ ] After a change to the diagrams, the design review from `prompts.md` ran again, and the ledger records a decision on each finding.
+- [ ] The stage's score row is in `docs/review/scores.tsv`, and every rise in a column has a ledger line.
+- [ ] The review page is rebuilt from the current design, code, vocabulary and score history.
+- [ ] Reverting this stage alone leaves the build and the full suite green.
+- [ ] Every piece of unused code has a stated reason and a follow-up stage. Planned holes are not dead code.
+- [ ] The stage did not edit, weaken, skip or delete any existing test. If a test seems wrong, propose the change and halt for sign-off.
+- [ ] The diff is within budget.
+- [ ] Structure and behavior are separate: a refactoring is its own stage, with the tests unchanged.
+
+Then write the handoff and wait for your human partner's review. If the repository uses pull requests, open one pull request for the change branch at the first boundary, and post each later handoff on it as a comment. Otherwise present the handoff in the conversation.
+
+```
+Stage: <n of N>   Type: <skeleton | fill | refactor | fixtures | migration-phase>   Requirement: <number>
 Claim: <one sentence: what this stage makes true>
 Holes: <filled: ids / added: ids / remaining: count>
+Size: <net hand-written lines>, generated: <files, or none>
+Score: <each column with its change, for example live_range 7 (-2)>
+Carried: <items carried through steps that do not use them, or none>
 Risk addressed: <what could have gone wrong, and how this stage retires it>
-Not done (deliberately): <deferred items + which stage picks them up>
+Not done (deliberately): <deferred items and the stage that picks each up>
 Verify: <exact commands run, and their result>
+Review page: <path or link>
 Review focus: <the one question the reviewer should answer>
 ```
 
-### 6. Drift and breakage rules
+### 10. Drift and breakage
 
-- If implementation reveals the plan or spec is wrong: STOP the stage, write a small plan diff, get it approved, then continue. Code never silently diverges from the plan.
-- Breaking schema or published-interface changes use expand–contract: expand additively, migrate, contract. One phase per stage, every phase backward compatible and revertable.
-- Circuit breakers: 3 consecutive failed attempts at the same hole → stop, write what you tried in the ledger, ask your human partner. 2 stages in a row that miss their acceptance criterion → the plan is wrong; replan.
+- If the code shows that the design or the requirements are wrong, stop the stage. Change the diagram and the plan first, as a plan diff for your human partner's approval, then change the code. The code never silently leaves the diagram.
+- A new hole within the stage's scope does not need approval in the middle of the stage. Add it to the diagram first, then declare it (see the fill loop), and your human partner reviews it at the boundary. A change to an approved signature, requirement or stage is a plan diff, and it halts the stage.
+- Breaking changes to a schema or a published interface go in phases: add the new form beside the old one, migrate every caller, then remove the old form. One phase per stage, each phase backward compatible and revertable.
+- After three failed attempts at one hole, stop work on the hole, record each attempt and its failure in the ledger, and ask your human partner. When two stages in a row halt without meeting their acceptance check, the plan is wrong: revise it as a plan diff for approval.
 
-### 7. Endgame: squash to stage commits
+### 11. Endgame
 
-After the final stage is approved — and only then — reshape the branch so the history a human inherits is stage-sized:
+Commit messages follow these rules on every path:
 
-- One commit per stage, in stage order. Fine-grained fill commits and ledger commits fold into their stage's commit (`git reset --soft` to the branch base and re-commit stage by stage, or an equivalent rebase). Each stage commit's tree must equal that stage's approved boundary tree, so every commit stays green and single-revert-safe.
-- Each commit message: an imperative subject naming what changed, then a body of one or two sentences in the first person ("I added the sliding-window limiter and wired it into create.") or third person ("This commit fixes the visit-count race."). Brief. No bullet lists, no hunk enumeration. This body style is your human partner's explicit house style and overrides avoiding-ai-tells' "no 'This commit...' openers" rule.
-- The final history must read like a human-maintained repository, bereft of methodology artifacts. Messages describe the functionality added, the change made, or the bug fixed — NEVER the process that produced it. Banned from final commit messages: "hole", "HOLE(", "fill", "census", "skeleton", "stage", "ledger", "plan approval", spec-section references. The scaffolding commit is described as what it is to a maintainer ("Set up the linkhub package: app factory, store API, route stubs") — not as a design-review artifact. A reader of `git log` alone should see a feature being built, not a methodology being followed.
-- Squashing collapses real history; it never fabricates one. Do not backdate, reorder work across stages, or invent commits for work that happened differently.
-- Re-run the full suite on the reshaped tip and quote the output — a green run proves only the tree it ran on.
-- The plan and ledger files stay in the tree; their churn history need not survive, the files themselves are the record. Record the pre-squash tip sha in the ledger before reshaping.
+- An imperative subject names the change, and a body of one or two sentences follows, in the first person ("I added the sliding-window limiter and wired it into create.") or the third person ("This commit fixes the visit-count race."). The body does not use bullet lists or list the hunks. This body style is your human partner's house style, and it overrides two rules of avoiding-ai-tells: the rule against "This commit..." openers, and the rule that a body appears only for a diagnosis.
+- The final history reads like a human-maintained repository. Messages describe the change to the software, never the process. Final commit messages do not use "hole", "HOLE(", "fill", "census", "skeleton", "stage", "ledger", "plan approval", "score", "review page" or requirement numbers. The scaffolding commit describes its content to a maintainer ("Set up the linkhub package: app factory, store API, route stubs").
 
-## The Inner Strategy: Skeleton, Then Fill
+If the repository's rules keep all work on one shared, already-pushed branch, do not rewrite its history. Push each stage after its approval as one squashed commit.
+
+Otherwise, only after your human partner approves the final stage, reshape the branch to one commit per stage:
+
+- Record the pre-squash tip in the ledger, and commit that line.
+- Start a new branch at the base. For each stage in order, run `git read-tree -u --reset <boundary commit>` and commit the result with a message under the rules above. A stage's boundary commit is the commit on the next stage's start line in the ledger. For the last stage, use the commit with the ledger line on the pre-squash tip, the one allowed difference from an approved tree.
+- Point the change branch at the new tip, and force-push it if a pull request is open.
+- Squashing collapses real history and never fabricates one: do not backdate commits, move work between stages or invent commits.
+- Re-run the full suite on the reshaped tip and quote the output.
+- The plan, ledger, vocabulary, design, score history and review page stay in the tree.
+
+## The inner strategy: skeleton, then fill
 
 ### The hole convention
 
-A hole is an unimplemented body that (a) satisfies the typechecker and (b) fails loudly if executed, carrying a greppable tag:
+A hole is an unimplemented body that satisfies the typechecker, fails loudly at run time, and carries a tag for grep:
 
+- Go: `panic("HOLE(3): parse the tenant header")`
 - Rust: `todo!("HOLE(3): parse the tenant header")`
 - Python: `raise NotImplementedError("HOLE(3): parse the tenant header")`
-- TypeScript/JS: `throw new Error("HOLE(3): parse the tenant header")`
-- Go: `panic("HOLE(3): parse the tenant header")`
-- Haskell: `error "HOLE(3): parse the tenant header"` (or a typed hole `_hole3` during local work)
+- TypeScript and JavaScript: `throw new Error("HOLE(3): parse the tenant header")`
+- Haskell: `error "HOLE(3): parse the tenant header"`. A typed hole such as `_hole3` fails the build, so use one only to read GHC's report, and replace it before the next build.
 
-The number is the plan-stage ID; the sentence is the hole's contract — what a correct body must do. In dynamically typed languages, every holed function gets full type annotations and the typechecker (mypy/pyright, tsc, etc.) joins the green gate; the annotations are what make the skeleton checkable at all.
+The number is the stage that fills the hole, and the sentence is its contract: the required behavior of a correct body. A hole's ID is its stage number and the name of the function that holds it, as in `3 header.Parse`. When one function holds several holes, number them in the order of the body: `3 header.Parse#2`. In a dynamically typed language, every function with a hole gets full type annotations, and the plan names the typechecker, such as mypy or tsc, for the stage-boundary checks.
 
 ### Stage 1: the skeleton
 
-Before implementing anything, write the ENTIRE shape of the planned change: every new type, every function signature, every module and its wiring, every trait/interface — with every body a hole and zero logic. The skeleton must compile and typecheck, and the existing suite must stay green (holes are never executed by it).
+Write the planned declarations and nothing else: each type, function signature, module and piece of wiring, with every body a hole and zero logic. A body that only calls the planned functions in the order of its diagram, such as the top function, may be real code in the skeleton, because it is the diagram written in code. The build, the typecheck and the existing suite all stay green. Then check the design against the skeleton (the design item of the stage-boundary checklist), and point the review page's links at the source.
 
-Commit the skeleton alone. This commit is the cheapest design review your human partner will ever do: they review names, types, seams, and dependency direction over a few hundred declaration lines, before any implementation exists to bias the discussion. HALT here — skeleton approval is a mandatory review boundary. Signatures approved at this boundary are frozen; changing one later is itself a stage.
+Commit the skeleton alone and halt for your human partner's review. Your human partner reviews the names, types, seams and dependency direction over a few hundred lines of declarations, beside their diagram. Approval at this boundary freezes the signatures. A later change to one is a plan diff that starts in the diagram.
 
 ### The fill loop
 
-Each subsequent stage fills the hole-cluster its plan entry names. Within a stage, fill one hole at a time:
+Each later stage fills the holes listed in its plan entry, one hole at a time:
 
-1. **Pick the next hole**: outside-in — the unblocked hole nearest the system's entry point. Tie-break by most-constrained-first: the hole whose types, callers, and contract admit the fewest possible implementations. Let the code that consumes a hole exist before the code inside it.
-2. **Interrogate the oracle before writing**: read the hole's signature, its contract sentence, its call sites, and what the typechecker says about the body you must produce. The compiler output is the spec of the hole; read it, do not invent from memory.
-3. **Fill by refinement, not by leaps.** Legal moves: (a) direct fill, when the body is small and the types nearly dictate it; (b) refine — replace the hole with exactly one layer of structure (a branch, a match, a delegating call) whose gaps are NEW, smaller, named holes added to the plan and ledger. After every move the build and typecheck are green. Never have more than one hole torn open mid-edit.
-4. **Every filled hole lands with its tests.** The tests that pin the hole's contract are part of the fill, in the same commit. A fill without tests is not filled; it is a hole wearing a body.
-5. **Commit per hole** (or per tightly coupled hole pair) with the hole ID in the message: `fill HOLE(3): parse the tenant header`.
+1. Pick the next hole outside-in: the open hole nearest the entry point whose tests do not execute another open hole. Break ties by taking the most constrained hole, the one whose types, callers and contract admit the fewest implementations.
+2. Before you write the body, read the hole's signature, its contract sentence, its call sites, and the typechecker's report on the body. The compiler's output is the spec of the hole.
+3. Fill by refinement. Either fill the hole directly, when the types nearly dictate the body, or replace it with one layer of structure (a branch, a match, a delegating call) whose gaps are new, smaller, named holes. Add each new hole's ID to the stage's Holes field in the plan, and record it in the ledger. Every move leaves the build and the typecheck green.
+4. Every filled hole lands with the tests that pin its contract, in the same commit.
+5. Commit per hole, or per tightly coupled pair, with the hole's ID in the message.
 
-If mid-fill you discover a needed function that doesn't exist: do NOT implement it inline. Declare it as a new named hole, ledger it, keep filling the current hole against its signature. Implementation beyond the current hole's contract is scope theft from a later stage.
+If a fill needs a missing function, add it to the diagram first, in the references of the box for its step or in a new box for a new step. Then declare it as a named hole, add its ID to the stage's Holes field in the plan, record it in the ledger, and return to the current hole. A gap inside one function needs no change to the diagram. Implementation beyond the current hole's contract takes scope from a later stage.
 
 ### The census
 
-`grep -rn "HOLE(" <src>` is the authoritative to-do list and progress bar. It is what makes this workflow resumable: after any interruption, the census plus the ledger reconstructs exactly where the work stands. The feature is done when the census returns nothing, the suite is green, and every plan stage has a `complete` ledger line.
+`grep -rn "HOLE(" <src>` is the to-do list and the progress bar. After any interruption, the census and the ledger together show the state of the work. The change is done when the census returns nothing, the full suite is green, and every stage has a completed line in the ledger.
+
+## Code comments
+
+A code comment describes the thing or its behavior in fewer than fifteen words. The reason for a step lives in the design, on its box's purpose line. A function's doc comment starts with the function's name and a verb, and the box's action line says the same in the imperative ("Analyze reads the source" beside "Read the source"), so either one can be written from the other.
 
 ## Rationalizations
 
 | Excuse | Reality |
 |---|---|
-| "I'll just implement this whole subtree while I'm here" | Everything past the current hole's contract belongs to a later stage. Declare holes and move on; scope theft now is an unreviewable diff later. |
-| "The build can stay red while I edit these three files together" | A red build silences the one oracle telling you what each hole must be. One hole open at a time; green after every move. |
-| "I know what type this needs, no need to run the checker" | Reading the checker is the method. Inventing from memory is how holes get filled with plausible wrong bodies. |
-| "The skeleton is overhead, I can hold the design in my head" | The skeleton is the design review. Your head is not reviewable, and it does not survive compaction. |
-| "I'll add tests once the holes are all filled" | An untested fill is indistinguishable from a wrong fill. Tests land in the same commit as the body they pin. |
-| "This stage is too simple to need a review halt" | Simple stages are where unexamined assumptions hide. The halt costs minutes; a wrong signature costs stages. |
-| "The cap is arbitrary; this 600-line diff is coherent" | Coherent is not reviewable. Defect detection collapses past ~400 lines. Split. |
-| "I'll quietly adjust the plan; explaining takes longer" | A plan the code has silently left is a lie that costs every later stage. Amend first, then build. |
-| "Tests passed earlier in the session" | A green run proves only the tree it ran on. Run the suite fresh at the boundary and quote it. |
+| "I'll update the diagram once the code settles" | The diagram comes before the code. With a stale diagram, the reviewer judges, and the score measures, a design missing from the code. |
+| "The arrow can show the updated value" | An arrow claims that the step returns the value. A change in place is a store write. |
+| "One weighted score is easier to track" | Invented weights hide the trade-offs between columns. Track each column, and explain every rise. |
+| "The review page is overhead for this stage" | The reviewer reads the page first, so a boundary without the page is incomplete. |
+| "Everyone knows what these terms mean" | Without definitions, the reviewer and the agent read one term in two different ways. |
+| "I'll just implement this whole subtree while I'm here" | Work past the current hole's contract belongs to a later stage. Declare new holes for that work and return to the current hole. |
+| "The build can stay red while I edit these three files together" | While the build is red, the typechecker cannot report the required type of each hole. |
+| "I know what type this needs, no need to run the checker" | Read the typechecker's output for each hole. A body written from memory can typecheck and still do the wrong thing. |
+| "I'll add tests once the holes are all filled" | Without its tests, a wrong fill looks the same as a right one. |
+| "This stage is too simple to need a review halt" | The halt costs little on a simple stage, and it still catches a wrong assumption. |
+| "The cap is arbitrary, and this 600-line diff is coherent" | A 600-line diff exceeds the 400-line cap. Split the stage. |
+| "I'll quietly adjust the plan, since explaining takes longer" | A plan out of step with the code misleads every later stage. Amend the plan first. |
+| "Tests passed earlier in the session" | A green run proves only the state of the tree at that run. Run the suite fresh at the boundary. |
 
-## Red Flags — Stop and Reread the Laws
+## Red flags
 
-If you catch yourself thinking any of these, STOP: "I'll skip the skeleton for this one" · "let me rough out several bodies and fix types later" · "this stub doesn't need a name or a contract" · "grep says 12 holes but I'm sure it's fewer" · "I'll batch the whole fill into one commit at the end" · "the signature is wrong but changing it now is faster than a plan diff." All of these mean: return to the plan, restore the green invariant, halt at the boundary.
-
-The through-line: the shape is committed and reviewed before any body exists; every body is demanded by a type, pinned by a test, and delivered inside a diff a human can hold in their head — and `grep` can always tell you exactly what remains.
+Stop and reread the laws if you catch yourself thinking any of these: "I'll draw the diagram after the code". "This mutation can go on the arrow". "The top diagram can show every store". "This box can call two packages". "I'll skip the score this stage". "I'll skip the skeleton for this one". "Let me rough out several bodies and fix the types later". "This stub does not need a name or a contract". "I'll batch the whole fill into one commit at the end". "The signature is wrong, but changing it now is faster than a plan diff". Each of these means: return to the plan and the diagram, restore the green build, and halt now, with a ledger line on the cause.

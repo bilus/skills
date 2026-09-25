@@ -1,0 +1,56 @@
+design flow.dfd: 1 diagram, 15 boxes
+
+items at home flow.dfd, level 0
+  analyze.File: sites           live range 6  read distance 6  writers 6           readers 12
+  analyze.Package: sum types    live range 1  read distance 1  writers 5           readers 6
+  analyze.Package: diagnostics  live range -  read distance -  writers 4, 5, 6, 7  readers -
+
+private items
+  Package directories: gox_prelude.go  writers 2   readers -
+  Package directories: x_gen.go        writers 15  readers -
+  analyze.File: constraint sites       writers 4   readers -
+  analyze.File: declared flags         writers 8   readers -
+  analyze.File: generated names        writers 9   readers -
+  analyze.File: import site            writers 10  readers -
+  analyze.File: matches                writers -   readers 8
+  analyze.File: sum type sites         writers 5   readers -
+  analyze.Package: markers             writers 3   readers -
+  go/packages overlay: preludes        writers 1   readers -
+
+pressure
+  flow.dfd  max 1 in 7 gaps, first between 5 and 6
+
+findings
+  dead item        Package directories: gox_prelude.go
+  dead item        Package directories: x_gen.go
+  dead item        analyze.File: constraint sites
+  dead item        analyze.File: declared flags
+  dead item        analyze.File: generated names
+  dead item        analyze.File: import site
+  dead item        analyze.File: sum type sites
+  dead item        analyze.Package: diagnostics
+  dead item        analyze.Package: markers
+  dead item        go/packages overlay: preludes
+  orphan item      analyze.File: matches
+  arrow candidate  analyze.Package: sum types, between 5 and 6
+  mixed box        box 8 in flow.dfd: analyze, scope
+  mixed box        box 9 in flow.dfd: analyze, scope
+  mixed box        box 12 in flow.dfd: emit, render
+
+design packages
+  flow.dfd, depth 0  analyze, emit, gox, load, render, scope
+
+totals
+  shared items by level                               0: 3
+  private items                                       10
+  unlabeled arrow                                     0
+  dead item                                           10
+  orphan item                                         1
+  read before write                                   0
+  arrow candidate                                     1
+  unmatched summary                                   0
+  missing summary                                     0
+  summary above home                                  0
+  mixed box                                           3
+  mixed diagram                                       0
+  diagrams with two or more design packages by depth  0: 1

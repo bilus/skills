@@ -1,0 +1,139 @@
+# Render: go run docs/flowpage.go (it runs dfd --box 300x150 --per-row 5 and underlines the vocabulary)
+#
+# One gox run, happy path. The steps inside analyze.Analyze pass the input
+# files along and fill two stores in place: analyze.Package holds the
+# markers, the sum types and the diagnostics, analyze.File the sites. An
+# arrow between two steps carries what the second step receives.
+
+{Tagged Go source}
+> patterns
+[Load the packages at marker level
+ to type scrutinees and try calls
+ (load.Load)]
+    > preludes
+    |go/packages overlay|
+> packages, preludes, test files
+[Write the missing preludes
+ so the markers resolve in gopls
+ (gox.Run)]
+    > gox_prelude.go
+    |D := Package directories|
+> packages
+[Find the prelude markers
+ to recognize sites by object, not name
+ (analyze.markers)]
+    > markers
+    |P := analyze.Package|
+> syntax files
+[Check the build constraint
+ to negate it in the generated file
+ (analyze.checkConstraint)]
+    > constraint sites
+    |F := analyze.File|
+    > diagnostics
+    |P|
+> input files
+[Validate the sum types
+ to give patterns their variants
+ (analyze.sumTypes,
+  analyze.checkCollisions)]
+    > sum type sites
+    |F|
+    > sum types, diagnostics
+    |P|
+> input files
+[Walk each file and check its sites
+ to report every error before rendering
+ (analyze.Analyze,
+  analyze.trySite,
+  analyze.catchSite,
+  analyze.matchSite)]
+    < sum types
+    |P|
+    > sites
+    |F|
+    > diagnostics
+    |P|
+> claimed try calls
+[Report the unclaimed try calls
+ so a try outside the four forms fails
+ (analyze.unclaimedTries)]
+    > diagnostics
+    |P|
+> input files
+[Mark bindings substituted or declared
+ to keep shadowed names out of substitution
+ (analyze.matchBindings,
+  scope.Declares)]
+    < matches
+    |F|
+    > declared flags
+    |F|
+> input files
+[Assign generated names
+ so the templates paste plain strings
+ (analyze.nameSites,
+  scope.Visible,
+  scope.Names)]
+    > generated names
+    |F|
+> input files
+[Record the fmt import
+ for context wrapping
+ (analyze.fmtImport)]
+    > import site
+    |F|
+> input files, diagnostics
+[Sort the diagnostics
+ to stop before writing any file
+ (gox.Run)]
+> input files
+[Fill the qudy templates
+ to render each site as hand-written Go
+ (render.site,
+  emit.Writer)]
+    < sites
+    |F|
+> site texts
+[Splice source and site texts
+ to keep untouched text byte for byte
+ (render.text)]
+> Go text
+[Prepend the header and format
+ so templates need no indentation
+ (render.Render,
+  go/format.Source)]
+> formatted source
+[Write the generated files
+ (gox.Run)]
+    > x_gen.go
+    |D|
+> generated files
+{Go build}
+
+# What each arrow carries, for the page docs/flowpage.go builds.
+# type: patterns = []string
+# type: preludes = map[string]string
+# type: packages, preludes, test files = *load.Result
+# type: gox_prelude.go = string, the prelude source
+# type: packages = []*load.Package
+# type: markers = analyze.Markers
+# type: syntax files = []*ast.File
+# type: constraint sites = *analyze.Constraint
+# type: diagnostics = []analyze.Diagnostic
+# type: input files = []*analyze.File
+# type: sum type sites = *analyze.SumTypeDecl
+# type: sum types, diagnostics = []*analyze.Sum, []analyze.Diagnostic
+# type: sum types = []*analyze.Sum
+# type: sites = []analyze.Site
+# type: claimed try calls = map[*ast.CallExpr]bool
+# type: matches = *analyze.Match
+# type: declared flags = bool, the Declared field of analyze.Binding
+# type: generated names = string, in the fields of analyze.Try and analyze.Match
+# type: import site = *analyze.ImportInsert, or the alias in File.FmtName
+# type: input files, diagnostics = []*analyze.File, []analyze.Diagnostic
+# type: site texts = string
+# type: Go text = string
+# type: formatted source = []byte
+# type: x_gen.go = []byte, one file per input file
+# type: generated files = x_gen.go files in the package directories
