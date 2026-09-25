@@ -26,6 +26,10 @@ Initial release. Staged delivery: plan approval gate, walking skeleton as stage 
 
 ## hole-driven-delivery
 
+### [0.3.0] - 2026-09-26
+
+The skeleton's approval now freezes the design and the vocabulary: a later change to either needs approval with a reason, and the agent prefers a change inside a function's body to a change of an interface, and a change deep in the design to one near the top. A later feature runs the loop again on the existing design, with its first layer of holes allowed inside existing functions. The review page is now built by the bundled `tools/dfdreview`, and it shows each diagram and each changed file before the stage, as a diff and after it. The diagram diff is dfd's `--patch` drawing. The score history file gave way to a cached score card of the last approved review, shown beside the new card. Processes carry explicit numbers, which dfdmetrics now reads, so an inserted box leaves the child diagrams' file names valid.
+
 ### [0.2.0] - 2026-09-25
 
 The design now leads the code. Before the skeleton, the agent writes a vocabulary of the change's terms, reviewed by a sub-agent for redundancy, and a leveled data flow design in the dfd format: each box names its functions and says why the later steps need it, each arrow has a type, each change of state in place is a store write, and state stays inside the smallest process that uses it. The plan names a system metaphor and checks the rules it implies. Every review now records a score row from the bundled `tools/dfdmetrics` (shared state by level, live range, read distance, pressure, package spread, findings) and rebuilds a review page with the design, links into the code, term definitions and the score history. New reference files: `design.md` (the design rules), `review-page.md` (the page's content) and `prompts.md` (sub-agent prompts for the vocabulary review and the design review). A hole's ID is now its stage number with the function that holds it, and a fill that needs a new function adds it to the diagram first. The endgame keeps pushed history intact on repositories that keep all work on one shared branch, and reshapes other branches with `git read-tree`.

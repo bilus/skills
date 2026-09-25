@@ -1,26 +1,26 @@
 # The review page
 
-The review page is the first thing your human partner opens at every review. It shows the leveled design with links into the code, the definitions of the vocabulary, and the score with its history. Rebuild it at the plan approval gate and at every stage boundary, and write it to `docs/review/index.html`.
+The review page is the first thing your human partner opens at every review. dfdreview builds it from the design, the code, the vocabulary, the plan and the two score cards, and writes it to `docs/review/index.html`.
 
 ## What it shows
 
-- One tab per diagram: "Overview" for the top diagram, then one tab per decomposed process, named by its number and action line ("3 Validate the sum types"). Clicking a numbered box with a child diagram opens that tab.
-- Each diagram rendered by dfd with process numbers and five boxes per row: `dfd --box 300x150 --per-row 5 --number`, plus `--number-prefix N.` for the child diagram of process N.
-- Function and type names in the boxes as links. Clicking one shows the whole source file, syntax highlighted, scrolls to the declaration, and marks the declaration's lines. Until the skeleton commit, the page embeds the plan's planned declarations, and the link shows the name's entry there.
-- Flow arrow labels as links. Clicking one shows the type of each of the label's items from its `# type:` comment, and opens the declaration of the first named type.
-- Every vocabulary term in a box or a store name underlined, with its definition shown on hover.
-- The score card: the latest row of `docs/review/scores.tsv`, with each column's change since the previous row and a mark on every rise. Below it, the whole history as a table.
-- The findings from dfdmetrics.
-- "The change in brief" and the metaphor from the plan.
+- One tab per diagram: "Overview" for the top diagram, then one tab per decomposed process, named by its number and action line. Clicking the number of a box with a child diagram opens that tab.
+- For each diagram changed since the base commit, three views: Before, Diff and After. The Diff view is dfd's `--patch` drawing: added boxes, lines and arrows green, removed ones red and struck through, and boxes with added and removed lines amber.
+- Function and type names in the boxes as links. Clicking one opens its source file, highlighted and scrolled to the declaration, with Before, Diff and After views when the file changed.
+- Flow arrow labels as links. Clicking an item shows its type from its `# type:` comment and opens the declaration of the first named type.
+- Vocabulary terms in boxes and store names underlined, with the definition on hover, and the vocabulary's changes since the base.
+- The files changed since the base, each opening its diff.
+- The new score card beside the cached one, with the change in each column and a mark on every rise.
+- The dfdmetrics report, and "The change in brief" and "Metaphor" sections of the plan.
 
 ## Building it
 
-Build the page by hand or with a small script. The method fixes the page's content, not its builder, but a script is quicker to rerun at every boundary. A script can follow these steps:
+```sh
+dfdreview -base <commit> -plan <plan path> \
+  -old-score docs/review/score.tsv -new-score docs/review/score.new.tsv \
+  -report docs/review/report.txt docs/flow.dfd
+```
 
-1. Render each diagram to SVG with dfd. Pipe the output with `-o -`, or write the files under `docs/review/`.
-2. Walk the SVG's `<text>` elements in order. A text after a `<rect>` belongs to a box. A text after a `<line>` with an arrowhead belongs to an arrow label: a store arrow when an end of the line lies within a few pixels of a store's lines, a flow arrow otherwise. A text after a plain `<line>` belongs to a store name. With `--number`, store names start with a prefix such as `D1 `: strip it before matching terms. Join the wrapped lines of a flow label, and split it at commas into items, before matching it against the `# type:` comments.
-3. Wrap each reference and each flow label in a clickable element for the page's script, and each vocabulary term in a `<tspan>` with a `<title>` child for the hover definition.
-4. Find each declaration's line range with the language's own parser, and embed the source files in the page as JSON.
-5. Load highlight.js from cdnjs to color the source by syntax.
+The base is the commit at the start of the stage: the previous stage's boundary commit from the ledger, or at the plan gate, the commit at the start of the work. dfdreview reads the base versions with git and runs dfd for every drawing, so both must be on the PATH. `tools/dfdreview/README.md` lists the other flags and the conventions the page relies on.
 
-Keep the page self-contained apart from that script and any web fonts, and readable in both light and dark themes. Keep the builder out of the build: in Go, start it with `//go:build ignore`. Give your human partner the page's path in the handoff, and publish the page elsewhere, such as an artifact, only when your human partner asks for a link.
+The page loads highlight.js from cdnjs and holds everything else inline. Give your human partner the page's path in the handoff, and publish the page elsewhere, such as an artifact, only when your human partner asks for a link.

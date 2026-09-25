@@ -29,6 +29,7 @@ Rules: <this skill's directory>/design.md
 Design: <paths of the dfd files>
 Plan: <plan path>
 Code: <paths, if any exists>
+Base: <the commit before the change, for a change to an existing design>
 dfdmetrics report: <paste the output of dfdmetrics docs/flow.dfd>
 
 1. Boxes: does the action line say what the referenced functions do? Does the purpose line
@@ -40,6 +41,9 @@ dfdmetrics report: <paste the output of dfdmetrics docs/flow.dfd>
 4. Levels: is each store drawn in the smallest process that uses it? Does each parent diagram
    show only the data and state that cross the boundary?
 5. Metaphor: which rule that a reader would infer from the plan's metaphor fails, and at which level?
+6. Changes: for a change to an existing design, run git diff <base> on the dfd files. Could a
+   change inside a function's body replace a changed interface, or a change in a deeper
+   diagram replace one in a higher diagram?
 
 Return numbered findings with evidence, most severe first.
 ```

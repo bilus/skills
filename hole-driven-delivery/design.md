@@ -14,13 +14,19 @@ The design of a change is a set of dfd files: a top diagram and a child diagram 
 # comment          ignored by dfd; the design uses it for arrow types
 ```
 
-`dfd --help` lists the flags. Render the top diagram with `dfd --box 300x150 --per-row 5 --number docs/flow.dfd -o docs/review/flow.svg`, and the child diagram of process 3 with `dfd --box 300x150 --per-row 5 --number --number-prefix 3. docs/flow.3.dfd -o docs/review/flow.3.svg`. dfd numbers processes by distinct title in order of first appearance, so a repeated title keeps its first number.
+`dfd --help` lists the flags. dfdreview renders every diagram for the review page. To render one by hand, run `dfd --box 300x150 --per-row 5 --number docs/flow.dfd -o flow.svg`.
+
+Leave footnotes out of the design files: dfdreview adds the links to code, types and terms when it builds the page.
+
+## Numbers
+
+Write each process's number at the start of its label: `[3. Validate the sum types`, and in the child diagram of process 3, `[3.1. Collect the sum types`. dfd shows an explicit number in the box's number band. The number stays with its box when a later change inserts a box before it, so the child diagram's file name stays valid. Either every process of a diagram has a number or none has one, and the boxes of one process share its number and its label.
 
 ## Process boxes
 
-A box holds an action line, a purpose line and the references:
+A box holds its number, an action line, a purpose line and the references:
 
-1. The action line, in the imperative: the step's action ("Validate the sum types").
+1. The number and the action line, in the imperative: the step's action ("3. Validate the sum types").
 2. The purpose line: why the later steps need this step ("to give patterns their variants"). Keep it short, and leave it out when the outgoing arrow's label already gives it.
 3. The references, in the last top-level pair of parentheses: the functions and types behind the step, as in `(analyze.sumTypes, analyze.checkCollisions)`. Write the design's own packages by name and other packages by import path (`go/format.Source`). A single-element standard library package such as `fmt` does not need a path. A design package named like one of them, such as `errors` or `log`, counts as external, so avoid such names.
 
