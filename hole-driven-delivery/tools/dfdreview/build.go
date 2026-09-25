@@ -7,7 +7,6 @@ import (
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/code"
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/design"
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/draw"
-	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/notes"
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/repo"
 )
 
@@ -43,14 +42,10 @@ func Build(opts Options) error {
 	if err != nil {
 		return err
 	}
-	n, err := notes.Read(opts.Plan, opts.OldScore, opts.NewScore, opts.Report)
-	if err != nil {
-		return err
-	}
-	return writePage(opts.Out, views, d, c, n)
+	return writePage(opts, views, d, c)
 }
 
-// writePage assembles the page data and writes the review page to out.
-func writePage(out string, views []draw.View, d *design.Design, c *code.Index, n *notes.Notes) error {
-	panic("HOLE(5): page.Data from the views, the design, the code and the notes, without the page itself, then page.Write")
+// writePage writes the review page to opts.Out, with the notes that opts names.
+func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index) error {
+	panic("HOLE(5): notes.Read, then page.Data from the views, the design, the code and the notes, without the page itself, then page.Write")
 }

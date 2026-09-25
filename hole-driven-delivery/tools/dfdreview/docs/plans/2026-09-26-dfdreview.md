@@ -29,7 +29,7 @@ A stage boundary reads each diagram of the design at the base and in the working
 
 ## Metaphor
 
-A light table: two transparencies of one drawing, the base and the working tree, lie over each other, and the reviewer flips between the old sheet, the overlay and the new sheet. Rules a reader would infer: both sheets show the same drawing at the same scale (dfd draws both with the same flags); the overlay shows only what differs (the Diff view colors changes and leaves the rest plain); pointing at a detail on a sheet shows that sheet's version of the detail (a link in the Before view opens the base version of the code). The rules hold at every level of the design.
+An editor's proof packet: the old copy, the new copy, and a marked-up copy with the deletions struck through and the insertions in color, bound with the reviewer's notes. Rules a reader would infer, checked at both levels: the marked copy marks each change once, in place, and leaves unchanged text plain (4.1 aligns the sources before any link); text flows, so an insertion moves what follows it (dfd fills its rows in order); the packet keeps the old and the new copy intact beside the marked one (the Before and After views); a margin reference in a copy points to the sources of that copy's edition (a link in the Before view opens the base version of the code); binding the packet adds the notes and changes no copy (step 5 writes the page and changes no drawing).
 
 ## Planned declarations
 
@@ -37,23 +37,23 @@ Package `dfdreview`, the command's library:
 
 - `type Options struct`: the inputs of one build: Design, Base, Vocabulary, Plan, OldScore, NewScore, Report, DFD, Out.
 - `func Build(opts Options) error`: Build writes the review page that opts describes.
-- `func writePage(out string, views []draw.View, d *design.Design, c *code.Index, n *notes.Notes) error`: assembles the page data and writes the page.
+- `func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index) error`: reads the notes, assembles the page data and writes the page.
 
 Package `repo`: `type Repo`, `func Open(dir, base string) (*Repo, error)`, and the methods `Read(path) (Pair, error)`, `Names(dir) ([]string, error)`, `GoFiles() (before, after map[string]string, err error)` and `Changed() ([]Change, error)`, with the types `Text`, `Pair` and `Change`.
 
-Package `dfdtext`, dfd source text line by line: `Link(src, Linker) (string, map[string]string)`, `References(src) []Reference`, `Types(src) map[string]string`, `Titles(src) map[string]string` and `Unified(path, before, after) string`, with the types `Linker`, `CodeFn` and `Reference`.
+Package `dfdtext`, dfd source text line by line: `Link(src, Linker) (string, map[string]string)`, `References(src) []Reference`, `Types(src) map[string]string`, `Titles(src) map[string]string`, `Align(before, after) []Op` and `Patch(path, ops, before, after) string`, with the types `Linker`, `CodeFn`, `Reference` and `Op`.
 
 Package `design`: `type Design`, `type Diagram`, `func Read(r *repo.Repo, top, vocabulary string) (*Design, error)`.
 
 Package `code`: `type Index`, `type Place`, `func Read(r *repo.Repo, d *design.Design) (*Index, error)`, `func Declarations(files map[string]string) (map[string]Place, error)`.
 
-Package `draw`: `type View`, `func Views(d *design.Design, c *code.Index, dfd string) ([]View, error)`, and the steps of process 4: `link`, `diff` and `render`, with the type `linked`.
+Package `draw`: `type View`, `func Views(d *design.Design, c *code.Index, dfd string) ([]View, error)`, and the steps of process 4: `align`, `link` and `render`, with the type `sheet`.
 
-Package `notes`: `type Notes`, `type Card`, `func Read(plan, oldScore, newScore, report string) (*Notes, error)`.
+Package `notes`: `type Notes`, `type Card`, `func Read(plan, oldScore, newScore, report string) (*Notes, error)`, called by `writePage`.
 
 Package `page`: `func Write(w io.Writer, d Data) error` and the page's data types, with the page embedded.
 
-Every step of the top diagram lives in its own package, so the tests of each stage reach its code through the package's exported API.
+Every step of the top diagram lives in its own package, so the tests of each stage reach its code through the package's exported API. repo, dfdtext, notes and page are library packages: the boxes' functions call them, and no box names them.
 
 ## Stages
 
@@ -80,8 +80,8 @@ Size: 250 lines.
 Goal: every reference, typed item and term of a dfd source becomes a footnote reference, and two versions of a source become a full-context patch.
 Requirement: 3, 4, 5.
 Dependencies: stage 1.
-Holes: 3 dfdtext.Link, 3 dfdtext.References, 3 dfdtext.Unified.
-Acceptance: tests of Link on titles over several lines, aliases, entities, store names and flow labels over several lines, and of Unified.
+Holes: 3 dfdtext.Link, 3 dfdtext.References, 3 dfdtext.Unified (filled as Align and Patch).
+Acceptance: tests of Link on titles over several lines, aliases, entities, store names and flow labels over several lines, and of Align and Patch.
 Size: 300 lines.
 
 ### Stage 4: code and drawings
@@ -89,24 +89,33 @@ Size: 300 lines.
 Goal: the Go declarations of both versions are indexed, and every diagram is drawn in its views by dfd.
 Requirement: 2, 3, 9.
 Dependencies: stages 2 and 3.
-Holes: 4 code.Read, 4 code.Declarations, 4 draw.link, 4 draw.diff, 4 draw.render.
+Holes: 4 code.Read, 4 code.Declarations, 4 draw.align, 4 draw.link, 4 draw.render.
 Acceptance: tests of code.Read and code.Declarations on a temporary repository, and of draw.Views with a stand-in dfd and, when it supports `--patch`, the real one.
 Size: 250 lines.
 
-### Stage 5: the page
+### Stage 5: the page data
 
-Goal: the page shows the tabs, the views, the code panel, the notes and the changed files.
-Requirement: 2 to 8.
+Goal: dfdreview writes a page that holds every view, source file, declaration, type, term, change and note, and shows the drawings in tabs.
+Requirement: 1, 2, 7, 8.
 Dependencies: stage 4.
 Holes: 5 dfdreview.writePage, 5 page.Write.
-Acceptance: a test of the page data, and the page of this tool's own design, checked in a browser.
-Size: 350 lines, most of it the page's script.
+Acceptance: a test of Build on a temporary repository with a stand-in dfd, which reads the page's data back.
+Size: 250 lines.
 
-### Stage 6: documentation
+### Stage 6: the page's script
+
+Goal: the page's links open code, types, terms and tabs, and its code panel shows each file before, as a diff and after.
+Requirement: 3 to 6.
+Dependencies: stage 5.
+Holes: none; the script is one file, written in one piece.
+Acceptance: the page of this tool's own design, checked in a browser.
+Size: 350 lines.
+
+### Stage 7: documentation
 
 Goal: the README describes the flags and the conventions.
 Requirement: 10.
-Dependencies: stage 5.
+Dependencies: stage 6.
 Holes: none.
 Acceptance: the skill's and the tool's text match the flags that `dfdreview -h` prints.
 Size: 80 lines.

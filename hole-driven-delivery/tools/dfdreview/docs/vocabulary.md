@@ -17,7 +17,9 @@ Terms of dfdreview, one per line.
 - target: where a link points: a declaration, a type, a term, or a page outside the repository.
 - link: a span of a drawing that points at a target. dfdreview makes one by wrapping a reference, a typed item or a term in dfd's footnote syntax, {text:id}, with a footnote definition, {id} target.
 - footnote definitions: the target of each footnote id that the links use, passed to dfd in one file.
-- patch: the unified diff of one diagram, with the whole file as context, that dfd draws as the Diff view.
+- alignment: which lines of a diagram's two versions match, and which the change removed or added, found on the sources before any link.
+- patch: the unified diff of one diagram, with the whole file as context, written from its alignment with the linked lines, that dfd draws as the Diff view.
+- sheet: a diagram ready to draw: both versions and the patch, linked.
 - design: the diagrams and the vocabulary, in both versions.
 - code directory: the directory above the design's directory, whose Go files dfdreview indexes.
 - declaration: a top-level Go function, type, variable or constant, with its file and lines, in one version.

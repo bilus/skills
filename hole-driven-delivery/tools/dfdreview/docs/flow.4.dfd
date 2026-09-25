@@ -1,23 +1,24 @@
 # Process 4, the body of draw.Views.
 
 {3. Index the declarations}
-> design, code index
-[4.1. Link each version of each diagram
- so dfd draws references, items and terms as links
+> design
+[4.1. Align the versions of each diagram line by line
+ so the Diff view shows only what changed
+ (draw.align)]
+> design, code index, alignments
+[4.2. Link both versions and the patch of each diagram
+ so dfd draws references, typed items and terms as links
  (draw.link)]
-> linked design, footnote definitions
-[4.2. Diff the linked versions
- so dfd can draw each change
- (draw.diff)]
-> linked design, patches, footnote definitions
+> sheets, footnote definitions, dfd command
 [4.3. Run dfd for each view
  (draw.render)]
 > views
-{5. Read the notes}
+{5. Write the page}
 
 # type: design = *design.Design
 # type: code index = *code.Index
-# type: linked design = draw.linked
+# type: alignments = map[string][]dfdtext.Op
+# type: sheets = []draw.sheet
 # type: footnote definitions = map[string]string
-# type: patches = map[string]string
+# type: dfd command = string
 # type: views = []draw.View

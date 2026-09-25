@@ -4,6 +4,8 @@ package draw
 import (
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/code"
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/design"
+	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/dfdtext"
+	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/repo"
 )
 
 // View is one diagram drawn in its views, each an SVG document or "".
@@ -15,25 +17,30 @@ type View struct {
 // Views draws each diagram of d in its views, with links to code, types and terms.
 // dfd is the command that draws.
 func Views(d *design.Design, c *code.Index, dfd string) ([]View, error) {
-	l, footnotes := link(d, c)
-	patches := diff(l)
-	return render(dfd, l, patches, footnotes)
+	alignments := align(d)
+	sheets, footnotes := link(d, c, alignments)
+	return render(dfd, sheets, footnotes)
 }
 
-// linked is the design's diagrams with their sources linked in both versions.
-type linked []design.Diagram
+// sheet is a diagram ready to draw: both versions and the patch, linked.
+type sheet struct {
+	number, title, path string
+	source              repo.Pair // the linked versions
+	patch               string    // "" for a diagram without changes
+}
 
-// link links each version of each diagram, and returns the footnote definitions the links use.
-func link(d *design.Design, c *code.Index) (linked, map[string]string) {
+// align matches the lines of the two versions of each changed diagram, by path.
+func align(d *design.Design) map[string][]dfdtext.Op {
+	panic("HOLE(4): dfdtext.Align on the raw sources of a changed, a new or a deleted diagram, none for an unchanged one")
+}
+
+// link links both versions of each diagram and writes each patch with the linked lines.
+// It returns the sheets and the footnote definitions their links use.
+func link(d *design.Design, c *code.Index, alignments map[string][]dfdtext.Op) ([]sheet, map[string]string) {
 	panic("HOLE(4): dfdtext.Link with each version's types and terms; references resolve to code or pkg.go.dev")
 }
 
-// diff returns the patch of each diagram whose versions differ, by path.
-func diff(l linked) map[string]string {
-	panic("HOLE(4): dfdtext.Unified for a changed, a new or a deleted diagram, none for an unchanged one")
-}
-
-// render runs dfd for each view of each diagram.
-func render(dfd string, l linked, patches, footnotes map[string]string) ([]View, error) {
+// render runs dfd for each view of each sheet.
+func render(dfd string, sheets []sheet, footnotes map[string]string) ([]View, error) {
 	panic("HOLE(4): one dfd run per view with a shared footnotes file; an error names the diagram and the version")
 }
