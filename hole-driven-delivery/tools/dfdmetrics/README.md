@@ -25,7 +25,7 @@ The command exits with status 0 after a report, 2 after a usage error, and 1 aft
 
 ## Writing a design for dfdmetrics
 
-The top diagram is a file such as flow.dfd. A file named flow.3.dfd beside it expands process 3, and flow.3.2.dfd expands process 3.2. Process numbers follow dfd's own numbering: `dfd --number` for the top diagram, and `dfd --number --number-prefix 3.` for flow.3.dfd. A repeated title keeps its first number.
+The top diagram is a file such as flow.dfd. A file named flow.3.dfd beside it expands process 3, and flow.3.2.dfd expands process 3.2. A process's number is the explicit number at the start of its label, as in `[3.1. Parse the input]` in flow.3.dfd. Either every process of a diagram has an explicit number or none has one. A child diagram's numbers extend its parent's number by one part, and the top diagram's numbers have one part. Without explicit numbers, the tool follows dfd's own numbering: `dfd --number` for the top diagram, and `dfd --number --number-prefix 3.` for flow.3.dfd, where a repeated title keeps its first number.
 
 A store arrow's label names state items, separated by commas. The store and the label together identify an item, so a write and a read of one item use the same store and the same label.
 

@@ -114,8 +114,8 @@ func parseInto(dg *Diagram) error {
 	if err != nil {
 		return err
 	}
-	dg.Boxes = boxes(dg, parsed.Steps)
-	return nil
+	dg.Boxes, err = boxes(dg, parsed.Steps)
+	return err
 }
 
 // siblingFile returns the path of the diagram that expands process number.
@@ -147,13 +147,16 @@ func childFiles(path string) (map[string]string, error) {
 }
 
 // boxes turns parsed steps into the numbered boxes of dg.
-func boxes(dg *Diagram, steps []ast.Step) []*Box {
+// An explicit number, as in "3.1. Parse", replaces dfd's own numbering.
+func boxes(dg *Diagram, steps []ast.Step) ([]*Box, error) {
 	prefix := ""
 	if dg.Number != "" {
 		prefix = dg.Number + "."
 	}
 	// dfd identifies a process by its title, so a repeated title keeps its number.
 	numbers := map[string]string{}
+	labels := map[string]string{} // the label of each explicit number
+	var unnumbered *Box           // the first box without an explicit number
 	var out []*Box
 	entity := false
 	for _, st := range steps {
@@ -161,26 +164,58 @@ func boxes(dg *Diagram, steps []ast.Step) []*Box {
 			entity = true
 			continue
 		}
-		num, ok := numbers[st.Title]
-		if !ok {
-			num = fmt.Sprintf("%s%d", prefix, len(numbers)+1)
-			numbers[st.Title] = num
+		title := st.Title
+		num, rest, explicit := explicitNumber(title)
+		switch {
+		case !explicit:
+			var ok bool
+			if num, ok = numbers[title]; !ok {
+				num = fmt.Sprintf("%s%d", prefix, len(numbers)+1)
+				numbers[title] = num
+			}
+		case prefix == "" && strings.Contains(num, "."):
+			return nil, fmt.Errorf("%s: process %s does not belong in the top diagram", dg.Path, num)
+		case !strings.HasPrefix(num, prefix) || strings.Contains(num[len(prefix):], "."):
+			return nil, fmt.Errorf("%s: process %s does not belong to process %s", dg.Path, num, dg.Number)
+		case labels[num] != "" && labels[num] != rest:
+			return nil, fmt.Errorf("%s: number %s already belongs to %q", dg.Path, num, labels[num])
+		default:
+			labels[num], title = rest, rest
 		}
 		if n := len(out); n > 0 && entity {
 			out[n-1].EntityAfter = true
 		}
 		entity = false
-		out = append(out, &Box{
+		b := &Box{
 			Diagram:  dg,
 			Number:   num,
 			Position: len(out) + 1,
-			Title:    st.Title,
-			Refs:     refs(st.Title),
+			Title:    title,
+			Refs:     refs(title),
 			Accesses: accesses(st.Stores),
-		})
+		}
+		if !explicit && unnumbered == nil {
+			unnumbered = b
+		}
+		out = append(out, b)
 	}
-	return out
+	if len(labels) > 0 && unnumbered != nil {
+		return nil, fmt.Errorf("%s: process %q has no number; number every process or none", dg.Path, unnumbered.Title)
+	}
+	return out, nil
 }
+
+// explicitNumber splits a leading number such as "3.2. " off a process label.
+// The number is groups of digits joined by dots, ended by a period and a space.
+func explicitNumber(label string) (number, rest string, ok bool) {
+	m := explicitPrefix.FindStringSubmatch(label)
+	if m == nil {
+		return "", "", false
+	}
+	return m[1], m[2], true
+}
+
+var explicitPrefix = regexp.MustCompile(`(?s)^([0-9]+(?:\.[0-9]+)*)\. +(\S.*)$`)
 
 // accesses returns one access per state item of each store arrow, without repeats.
 func accesses(links []ast.StoreLink) []Access {
