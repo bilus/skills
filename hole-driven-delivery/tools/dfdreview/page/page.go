@@ -12,6 +12,7 @@ import (
 // Data is everything the review page shows.
 type Data struct {
 	Title    string          `json:"title"`
+	Base     string          `json:"base"` // the revision the page compares against, "" for none
 	Diagrams []Diagram       `json:"diagrams"`
 	Files    map[string]File `json:"files"`
 	Decls    map[string]Decl `json:"decls"`

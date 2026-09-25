@@ -63,7 +63,7 @@ func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index)
 	}
 	self = filepath.ToSlash(self)
 	data := page.Data{
-		Title: n.Title, Brief: n.Brief, Metaphor: n.Metaphor, Report: n.Report,
+		Title: n.Title, Base: d.Base, Brief: n.Brief, Metaphor: n.Metaphor, Report: n.Report,
 		OldScore: card(n.OldScore), NewScore: card(n.NewScore),
 		Files: map[string]page.File{}, Decls: map[string]page.Decl{},
 		Terms: page.Versions{Before: design.Terms(d.Vocabulary.Before.Content), After: design.Terms(d.Vocabulary.After.Content)},
