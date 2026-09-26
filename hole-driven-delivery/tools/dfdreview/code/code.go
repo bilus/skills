@@ -20,6 +20,7 @@ import (
 // Index is the Go declarations and the changed files of a change, in both versions.
 type Index struct {
 	Before, After map[string]Place     // declarations by key, such as "analyze.sumTypes"
+	ChangedDecls  map[string]bool      // the keys of the declarations that differ between the versions
 	Std           map[string]bool      // the standard library's import paths
 	Files         map[string]repo.Pair // the files the page shows, by path
 	Changed       []repo.Change
@@ -33,7 +34,7 @@ type Place struct {
 
 // Read indexes the declarations of both versions and the files changed since the base.
 // The page shows the files of the declarations that the boxes and the type comments
-// name, and every changed file.
+// name, and every changed file. Without a base, ChangedDecls is empty.
 func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	before, after, err := r.GoFiles()
 	if err != nil {
@@ -45,6 +46,9 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	}
 	if idx.After, err = Declarations(after); err != nil {
 		return nil, err
+	}
+	if r.Base() != "" {
+		idx.ChangedDecls = changedDecls(before, after, idx.Before, idx.After)
 	}
 	if idx.Std, err = stdPackages(); err != nil {
 		return nil, err
@@ -81,6 +85,32 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 		idx.Files[c.Path] = c.Content
 	}
 	return idx, nil
+}
+
+// changedDecls returns the keys of the declarations whose lines, doc comment included,
+// differ between the versions, and of those that exist in one version only.
+func changedDecls(before, after map[string]string, beforeDecls, afterDecls map[string]Place) map[string]bool {
+	keys := map[string]bool{}
+	for key, b := range beforeDecls {
+		if a, ok := afterDecls[key]; !ok || lines(before, b) != lines(after, a) {
+			keys[key] = true
+		}
+	}
+	for key := range afterDecls {
+		if _, ok := beforeDecls[key]; !ok {
+			keys[key] = true
+		}
+	}
+	return keys
+}
+
+// lines returns the text of the lines at p in files, or "" when p lies outside its file.
+func lines(files map[string]string, p Place) string {
+	all := strings.Split(files[p.File], "\n")
+	if p.Start < 1 || p.End > len(all) || p.Start > p.End {
+		return ""
+	}
+	return strings.Join(all[p.Start-1:p.End], "\n")
 }
 
 // typeNames returns the declaration keys of the qualified names in types, such as lib.Item in []*lib.Item.

@@ -93,3 +93,39 @@ func TestRead(t *testing.T) {
 		t.Errorf("README.md = %+v", readme)
 	}
 }
+
+func TestReadChangedDecls(t *testing.T) {
+	g := gittest.New(t)
+	g.Write(map[string]string{
+		"docs/flow.dfd": "[1. Read (lib.Read)]\n",
+		"lib/lib.go":    "package lib\n\n// Read reads.\nfunc Read() {}\n\nfunc Same() {}\n\nfunc Gone() {}\n\ntype Item int\n",
+	})
+	base := g.Commit("base")
+	g.Write(map[string]string{
+		// Same moves down a few lines and stays the same.
+		"lib/lib.go": "package lib\n\n// Read reads the input.\nfunc Read() {}\n\nfunc New() {}\n\nfunc Same() {}\n\ntype Item string\n",
+	})
+	for _, tc := range []struct {
+		base string
+		want map[string]bool
+	}{
+		{base, map[string]bool{"lib.Read": true, "lib.Gone": true, "lib.New": true, "lib.Item": true}},
+		{"", nil},
+	} {
+		r, err := repo.Open(g.Dir, tc.base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d, err := design.Read(r, filepath.Join(g.Dir, "docs", "flow.dfd"), "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, err := code.Read(r, d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(c.ChangedDecls, tc.want) {
+			t.Errorf("base %q: changed declarations %v, want %v", tc.base, c.ChangedDecls, tc.want)
+		}
+	}
+}

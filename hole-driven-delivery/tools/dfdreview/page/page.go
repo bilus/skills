@@ -42,10 +42,12 @@ type File struct {
 	Diff   string  `json:"diff"`
 }
 
-// Decl is where a declaration sits in each version; nil where it does not exist.
+// Decl is where a declaration sits in each version, nil for a version without it,
+// and whether the declaration differs between the versions.
 type Decl struct {
-	Before *Place `json:"before"`
-	After  *Place `json:"after"`
+	Before  *Place `json:"before"`
+	After   *Place `json:"after"`
+	Changed bool   `json:"changed"`
 }
 
 // Place is a declaration's file and lines.

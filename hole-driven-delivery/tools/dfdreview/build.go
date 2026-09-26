@@ -98,11 +98,13 @@ func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index)
 	for key, pl := range c.Before {
 		decl := data.Decls[key]
 		decl.Before = &page.Place{File: pl.File, Start: pl.Start, End: pl.End}
+		decl.Changed = c.ChangedDecls[key]
 		data.Decls[key] = decl
 	}
 	for key, pl := range c.After {
 		decl := data.Decls[key]
 		decl.After = &page.Place{File: pl.File, Start: pl.Start, End: pl.End}
+		decl.Changed = c.ChangedDecls[key]
 		data.Decls[key] = decl
 	}
 	if err := os.MkdirAll(filepath.Dir(opts.Out), 0o755); err != nil {

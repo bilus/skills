@@ -97,6 +97,9 @@ func TestBuild(t *testing.T) {
 	if read.Before == nil || read.After == nil || read.After.File != "lib/lib.go" || read.After.Start != 3 {
 		t.Errorf("lib.Read declared at %+v", read)
 	}
+	if !read.Changed || d.Decls["lib.Item"].Changed {
+		t.Errorf("changed: lib.Read %v, want true; lib.Item %v, want false", read.Changed, d.Decls["lib.Item"].Changed)
+	}
 	lib := d.Files["lib/lib.go"]
 	if lib.Before == nil || lib.After == nil || !strings.Contains(lib.Diff, "+// Read reads the items.") {
 		t.Errorf("lib/lib.go = %+v", lib)
