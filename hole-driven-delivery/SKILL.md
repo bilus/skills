@@ -13,7 +13,7 @@ Announce at start: "Using hole-driven-delivery: requirements, vocabulary, and a 
 
 ```
 1. NO IMPLEMENTATION BEFORE AN APPROVED PLAN. THE PLAN GATE REVIEWS THE REQUIREMENTS, THE VOCABULARY, THE TOP DIAGRAM AND ITS SKELETON OF HOLES.
-2. A DIAGRAM AND ITS CODE CHANGE TOGETHER. EVERY BOX IN A REVIEW HAS ITS FUNCTION, DECLARED WITH A HOLE OR FILLED. AN APPROVED DIAGRAM OR TERM CHANGES ONLY WITH APPROVAL.
+2. A DIAGRAM AND ITS CODE CHANGE TOGETHER. A NEW BOX GOES TO REVIEW AS ITS FUNCTION'S SIGNATURE WITH A HOLE, AND A LATER STAGE FILLS IT. AN APPROVED DIAGRAM OR TERM CHANGES ONLY WITH APPROVAL.
 3. NO IMPLEMENTATION BEFORE A GREEN SKELETON. EVERY NEW BODY STARTS AS A NAMED HOLE.
 4. THE BUILD IS NEVER RED. ONE HOLE OPEN AT A TIME.
 5. HALT AT EVERY STAGE BOUNDARY, WITH THE REVIEW PAGE AND THE SCORE UP TO DATE.
@@ -111,12 +111,14 @@ The score cannot see data carried through a step that does not use it: an item t
 
 Every stage in the plan has these fields:
 
-- Goal: one sentence about behavior, "the system now does X, observably".
+- Goal: one sentence about behavior, "the system now does X, observably". A stage that splits a process into steps is the exception: its goal is the new level, and its acceptance check is the build with the design items of the stage-boundary checklist.
 - Requirement: the number of the stage's requirement.
 - Dependencies: the stages that must land first.
 - Holes: the IDs of the holes filled in this stage (see the hole convention).
 - Acceptance: an executable check, a test name or a command, that defines done.
 - Size: the estimated net hand-written lines.
+
+When a hole's fill will split its process into steps, plan two stages. The first draws the process's child diagram, declares one function per box with a hole, and ends. The second fills those holes, and its acceptance check is the one that needs them filled.
 
 The budget is 100 to 300 net hand-written lines per stage, with a hard cap of 400. Generated files, lockfiles and fixtures copied from a spec fall outside the budget, and the handoff labels them. Split any stage whose estimate exceeds the cap. If a stage's diff crosses the cap during the fill, stop at the last green commit, and halt the stage with a proposal to move the remaining holes into a new stage.
 
@@ -137,7 +139,7 @@ A stage is done only when it meets every item of this checklist:
 - [ ] The build, lint, typecheck and full test suite all pass in a fresh run in this message, and the handoff quotes the output.
 - [ ] The stage's acceptance check passes in a fresh run, and the handoff quotes its output.
 - [ ] The handoff quotes the hole census with its change since the last stage. The census does not show any of the stage's claimed holes, and the plan lists each hole added in the stage.
-- [ ] Every box that this stage added or changed comes with its code in this stage's diff, and every function that this stage declared has its box.
+- [ ] Every box that this stage added comes with its function declared with a hole in this stage's diff, and this stage filled none of those holes. Every function that this stage declared has its box.
 - [ ] The design matches the code. Every reference in a box resolves to a declaration, every `# type:` names a declared type, every function called directly by the top function or by a decomposed process's function has a box in the matching diagram, and the diagrams show the current form of every flow changed in this stage. A call inside a leaf box's function needs no box.
 - [ ] After a change to the diagrams, the design review from `prompts.md` ran again, and the ledger records a decision on each finding.
 - [ ] The stage's report and score card are in `docs/review/`, and every rise over the cached card has a ledger line.
@@ -166,7 +168,7 @@ Review focus: <the one question the reviewer should answer>
 
 ### 10. Changes after the plan gate
 
-The plan's approval freezes the top diagram and the vocabulary, and a stage's approval freezes the child diagrams it drew. A child diagram that a fill draws for its own process belongs to that fill, and your human partner reviews it at the boundary. When the work needs a change to a frozen diagram or to the vocabulary, choose the first of these that does the job:
+The plan's approval freezes the top diagram and the vocabulary, and a stage's approval freezes the child diagrams it drew. A child diagram that a fill draws for its own process belongs to that fill, and it ends the stage: your human partner reviews the new level, with its holes, at that boundary. When the work needs a change to a frozen diagram or to the vocabulary, choose the first of these that does the job:
 
 1. A change inside a function's body. The body may call new unexported helpers of its own package: they belong to the box of the function, and the diagrams do not change.
 2. A change to an interface between processes in the deepest diagram that holds it: an arrow's label or type, a store item, a new child process.
@@ -175,7 +177,7 @@ The plan's approval freezes the top diagram and the vocabulary, and a stage's ap
 A change of kind 2 or 3 changes the design, and so does a new or changed term in the vocabulary. Stop the stage, and ask your human partner for approval with the reason, as a plan diff that shows the changed diagram together with its code: the changed signatures, and a hole for each new or changed body. The code never silently leaves the diagram.
 
 - If the code shows that the design or the requirements are wrong, stop the stage in the same way.
-- A new hole within the stage's scope needs no approval when the frozen diagrams stay as they are: a hole in a function body, a new unexported helper, or a function in the child diagram that the fill draws for its own process. Declare it (see the fill loop), and your human partner reviews it at the boundary. A change to an approved signature, requirement or stage is a plan diff, and it halts the stage.
+- A new hole within the stage's scope needs no approval when the frozen diagrams stay as they are: a hole in a function body, a new unexported helper, or a function in the child diagram that the fill draws for its own process. Declare it (see the fill loop), and your human partner reviews it at the boundary. A function of a new child diagram waits for that review before a later stage fills it. A change to an approved signature, requirement or stage is a plan diff, and it halts the stage.
 - Breaking changes to a schema or a published interface go in phases: add the new form beside the old one, migrate every caller, then remove the old form. One phase per stage, each phase backward compatible and revertable.
 - After three failed attempts at one hole, stop work on the hole, record each attempt and its failure in the ledger, and ask your human partner. When two stages in a row halt without meeting their acceptance check, the plan is wrong: revise it as a plan diff for approval.
 
@@ -217,7 +219,7 @@ A hole is an unimplemented body that satisfies the typechecker, fails loudly at 
 - TypeScript and JavaScript: `throw new Error("HOLE(3): parse the tenant header")`
 - Haskell: `error "HOLE(3): parse the tenant header"`. A typed hole such as `_hole3` fails the build, so use one only to read GHC's report, and replace it before the next build.
 
-The number is the stage that fills the hole, and the sentence is its contract: the required behavior of a correct body. A hole's ID is its stage number and the name of the function that holds it, as in `3 header.Parse`. When one function holds several holes, number them in the order of the body: `3 header.Parse#2`. In a dynamically typed language, every function with a hole gets full type annotations, and the plan names the typechecker, such as mypy or tsc, for the stage-boundary checks.
+The number is the stage that fills the hole, and the sentence is its contract: the required behavior of a correct body. A hole declared by a split, in a new child diagram, takes the number of a later stage, never the current one. A hole's ID is its stage number and the name of the function that holds it, as in `3 header.Parse`. When one function holds several holes, number them in the order of the body: `3 header.Parse#2`. In a dynamically typed language, every function with a hole gets full type annotations, and the plan names the typechecker, such as mypy or tsc, for the stage-boundary checks.
 
 ### The skeleton
 
@@ -231,11 +233,11 @@ Each stage fills the holes listed in its plan entry, one hole at a time:
 
 1. Pick the next hole outside-in: the open hole nearest the entry point whose tests do not execute another open hole. Break ties by taking the most constrained hole, the one whose types, callers and contract admit the fewest implementations.
 2. Before you write the body, read the hole's signature, its contract sentence, its call sites, and the typechecker's report on the body. The compiler's output is the spec of the hole.
-3. Fill by refinement. Either fill the hole directly, when the types nearly dictate the body, or replace it with one layer of structure (a branch, a match, a delegating call) whose gaps are new, smaller, named holes. When the layer is a sequence of calls to new functions, the process now has steps of its own: draw its child diagram first, one box per new function with its arrows and their types, then declare each function as a named hole. A helper called among a body's own statements stays inside its box. Add each new hole's ID to the stage's Holes field in the plan, and record it in the ledger. Every move leaves the build and the typecheck green.
+3. Fill by refinement. Either fill the hole directly, when the types nearly dictate the body, or replace it with one layer of structure (a branch, a match, a delegating call) whose gaps are new, smaller, named holes. When the layer is a sequence of calls to new functions, the process now has steps of its own: draw its child diagram first, one box per new function with its arrows and their types, then declare each function as a named hole, and end the stage there. Those holes take the next stage's number, and the plan adds them to that stage's Holes field. A helper called among a body's own statements stays inside its box, and its hole joins the current stage. Record each new hole in the ledger. Every move leaves the build and the typecheck green.
 4. Every filled hole lands with the tests that pin its contract, in the same commit.
 5. Commit per hole, or per tightly coupled pair, with the hole's ID in the message.
 
-If a fill needs a missing function, declare it as a named hole, add its ID to the stage's Holes field in the plan, record it in the ledger, and return to the current hole. A helper stays inside its box, and a new step of the process being filled gets a box in that process's child diagram. A missing function that needs a new box, arrow or store in a frozen diagram changes the design, and it waits for approval (step 10). Implementation beyond the current hole's contract takes scope from a later stage.
+If a fill needs a missing function, declare it as a named hole and record it in the ledger. A helper stays inside its box: add its ID to the current stage's Holes field, and return to the current hole. A new step of the process being filled gets a box in that process's child diagram, which ends the stage, and its hole goes to the next stage. A missing function that needs a new box, arrow or store in a frozen diagram changes the design, and it waits for approval (step 10). Implementation beyond the current hole's contract takes scope from a later stage.
 
 ### The census
 
@@ -251,6 +253,8 @@ A code comment describes the thing or its behavior in fewer than fifteen words. 
 |---|---|
 | "I'll update the diagram once the code settles" | The diagram comes before the code. With a stale diagram, the reviewer judges, and the score measures, a design missing from the code. |
 | "The reviewer can judge the design from the diagram alone, and the skeleton can wait for approval" | A diagram without its code hides the signatures, and no box links to anything. The holes are what the reviewer checks, so the diagram and its skeleton go to the plan gate together. |
+| "The new level's functions are small, so I'll fill them before the boundary" | Then your human partner never sees the new level's signatures and contracts before its bodies exist. End the stage with the holes, and fill them in the next one. |
+| "The stage's acceptance check needs the new functions filled" | The plan put a split and its fill in one stage. Split the stage: the first ends with the new level's holes, and the second fills them and runs that check. |
 | "I'll draw the lower levels now, so the reviewer sees the whole design" | A box without a function misleads the reviewer, and the review page reports its missing declaration. A child diagram comes with the fill that creates its functions. |
 | "This new arrow is small, so I'll mention it at the boundary" | After the plan gate, a change to a frozen diagram or to the vocabulary needs approval, shown with its code. Ask first. |
 | "Changing the top diagram is cleaner than working inside this box" | A change inside a body beats a change to an interface, and a change deep in the design beats one near the top. Take the first that does the job. |
@@ -269,4 +273,4 @@ A code comment describes the thing or its behavior in fewer than fifteen words. 
 
 ## Red flags
 
-Stop and reread the laws if you catch yourself thinking any of these: "I'll draw the diagram after the code". "This mutation can go on the arrow". "The top diagram can show every store". "This box can call two packages". "I'll skip the score this stage". "I'll skip the skeleton for this one". "Let me rough out several bodies and fix the types later". "This stub does not need a name or a contract". "I'll batch the whole fill into one commit at the end". "The signature is wrong, but changing it now is faster than a plan diff". "I'll add a box now and explain it at the boundary". "I'll sketch the lower levels now and write their functions later". "I'll get the design approved first and write the skeleton after". Each of these means: return to the plan and the diagram, restore the green build, and halt now, with a ledger line on the cause.
+Stop and reread the laws if you catch yourself thinking any of these: "I'll draw the diagram after the code". "This mutation can go on the arrow". "The top diagram can show every store". "This box can call two packages". "I'll skip the score this stage". "I'll skip the skeleton for this one". "Let me rough out several bodies and fix the types later". "This stub does not need a name or a contract". "I'll batch the whole fill into one commit at the end". "The signature is wrong, but changing it now is faster than a plan diff". "I'll add a box now and explain it at the boundary". "I'll sketch the lower levels now and write their functions later". "I'll get the design approved first and write the skeleton after". "I'll draw the child diagram and fill its boxes in the same stage". Each of these means: return to the plan and the diagram, restore the green build, and halt now, with a ledger line on the cause.

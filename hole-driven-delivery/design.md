@@ -57,7 +57,7 @@ The action line and the doc comment of the box's first reference say the same th
 - A child diagram may show the neighbours of its parent process as entities, so its inputs and outputs are visible.
 - A few neighbouring steps may share state, as long as the last of them returns a finished value. Group them into one process. One level up, the group is a process with plain inputs and outputs, and its child diagram holds the store. Apply this rule at every level.
 - A parent diagram draws a store arrow on a decomposed box only for a state item with accessing boxes both inside and outside that box. Such an arrow is a summary, and dfdmetrics checks each one against the leaf boxes anywhere below the decomposed box.
-- Levels grow with the fills. The plan draws the top diagram, and the skeleton declares each top-level process's function with a hole for its body. When a fill replaces a hole with calls to new functions, the same stage draws that process's child diagram, with one box per new function, and declares each function with a hole. A diagram and its code always go to review together.
+- Levels grow with the fills. The plan draws the top diagram, and the skeleton declares each top-level process's function with a hole for its body. When a fill replaces a hole with calls to new functions, the same stage draws that process's child diagram, with one box per new function, and declares each function with a hole. That stage ends there, so the new level goes to review before any of its bodies exists, and a later stage fills it. A diagram and its code always go to review together.
 - The code follows the levels. Each decomposed process is one function or method, and its body calls the functions of its child processes in order.
 
 ## Packages
