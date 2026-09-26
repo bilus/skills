@@ -53,7 +53,7 @@ Package `notes`: `type Notes`, `type Card`, `func Read(plan, oldScore, newScore,
 
 Package `page`: `func Write(w io.Writer, d Data) error` and the page's data types, with the page embedded.
 
-Every step of the top diagram lives in its own package, so the tests of each stage reach its code through the package's exported API. repo, dfdtext, notes and page are library packages: the boxes' functions call them, and no box names them.
+Every step of the top diagram lives in its own package, so the tests of each stage reach its code through the package's exported API. The boxes' functions call repo, dfdtext, notes and page inside their own bodies, so no box names those packages.
 
 ## Stages
 

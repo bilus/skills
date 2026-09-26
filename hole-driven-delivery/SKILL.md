@@ -135,7 +135,7 @@ A stage is done only when it meets every item of this checklist:
 - [ ] The build, lint, typecheck and full test suite all pass in a fresh run in this message, and the handoff quotes the output.
 - [ ] The stage's acceptance check passes in a fresh run, and the handoff quotes its output.
 - [ ] The handoff quotes the hole census with its change since the last stage. The census does not show any of the stage's claimed holes, and the plan lists each hole added in the stage.
-- [ ] The design matches the code. Every reference in a box resolves to a declaration, every `# type:` names a declared type, every exported function appears in some box, and the diagrams show the current form of every flow changed in this stage.
+- [ ] The design matches the code. Every reference in a box resolves to a declaration, every `# type:` names a declared type, every function called directly by the top function or by a decomposed process's function has a box in the matching diagram, and the diagrams show the current form of every flow changed in this stage. A call inside a leaf box's function needs no box.
 - [ ] After a change to the diagrams, the design review from `prompts.md` ran again, and the ledger records a decision on each finding.
 - [ ] The stage's report and score card are in `docs/review/`, and every rise over the cached card has a ledger line.
 - [ ] The review page is rebuilt with dfdreview against the stage's start commit, so it shows the stage's changes to the design and the code.

@@ -57,7 +57,7 @@ The action line and the doc comment of the box's first reference say the same th
 ## Packages
 
 - Each box references functions of one design package.
-- When a process needs another design package, give the process's own package a wrapper function for the call. The box references the wrapper, and the wrapper's child diagram holds only the other package's steps.
+- When a decomposed process's function would call a function of another design package directly, give the process's package a wrapper function for the call. The box references the wrapper, and the wrapper's child diagram holds only the other package's steps. A call inside a leaf box's function may reach any package.
 - The top diagram shows the architecture and may span several packages. Each child diagram stays within one package.
 
 ## Findings and their usual fixes
