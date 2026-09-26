@@ -24,7 +24,7 @@ type Design struct {
 type Diagram struct {
 	Number string // "" for the top diagram
 	Path   string // as the design names it
-	Title  string // the tab's name: "Overview", or the number and the action line
+	Title  string // "Overview", or the description of the process that the diagram expands
 	Source repo.Pair
 }
 
@@ -51,8 +51,8 @@ func Read(r *repo.Repo, top, vocabulary string) (*Design, error) {
 		}
 		byNumber[number] = src
 		title := number
-		if action, ok := dfdtext.Titles(latest(byNumber[parent(number)]), prefix(parent(number)))[number]; ok {
-			title += " " + action
+		if description, ok := dfdtext.Descriptions(latest(byNumber[parent(number)]), prefix(parent(number)))[number]; ok {
+			title = description
 		}
 		d.Diagrams = append(d.Diagrams, Diagram{Number: number, Path: children[number], Title: title, Source: src})
 	}

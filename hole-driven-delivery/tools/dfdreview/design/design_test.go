@@ -42,7 +42,7 @@ func TestReadFindsChildDiagramsInBothVersions(t *testing.T) {
 	if want := []string{"", "1", "2", "2.1", "3"}; !reflect.DeepEqual(numbers, want) {
 		t.Errorf("numbers = %q, want %q", numbers, want)
 	}
-	if want := []string{"Overview", "1 Read", "2 Check", "2.1 Parse", "3 Write"}; !reflect.DeepEqual(titles, want) {
+	if want := []string{"Overview", "Read", "Check", "Parse", "Write"}; !reflect.DeepEqual(titles, want) {
 		t.Errorf("titles = %q, want %q", titles, want)
 	}
 	if want := []string{"flow.dfd", "flow.1.dfd", "flow.2.dfd", "flow.2.1.dfd", "flow.3.dfd"}; !reflect.DeepEqual(paths, want) {
@@ -78,7 +78,7 @@ func TestReadTitlesAnUnnumberedDesign(t *testing.T) {
 	for _, dg := range d.Diagrams {
 		titles = append(titles, dg.Title)
 	}
-	if want := []string{"Overview", "2 Check the items", "2.2 Validate"}; !reflect.DeepEqual(titles, want) {
+	if want := []string{"Overview", "Check the items", "Validate"}; !reflect.DeepEqual(titles, want) {
 		t.Errorf("titles = %q, want %q", titles, want)
 	}
 }

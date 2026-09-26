@@ -55,6 +55,7 @@ body.resizing { cursor: col-resize; user-select: none; }
 #drawing .child { cursor: pointer; fill: #4a37b0; text-decoration: underline; }
 #drawing .missing tspan { fill: #b3261e; }
 h2 { font-size: 14px; margin: 22px 0 6px; }
+#diagram-title { font-size: 15px; margin: 2px 0 8px; }
 .prose p { margin: 0 0 8px; max-width: 70em; }
 table { border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 3px 10px 3px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
@@ -99,6 +100,7 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
 <main>
   <section id="left">
     <div id="tabs" class="tabs" role="tablist" aria-label="Diagrams"></div>
+    <h2 id="diagram-title"></h2>
     <div id="views" class="tabs small" role="tablist" aria-label="Views"></div>
     <div id="drawing"></div>
     <div id="notes"></div>
@@ -136,6 +138,9 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
       b.setAttribute("role", "tab");
       b.setAttribute("aria-selected", String(item.id === selected));
       b.textContent = item.label;
+      if (item.hint) {
+        b.title = item.hint;
+      }
       b.addEventListener("click", () => onSelect(item.id));
       container.appendChild(b);
     });
@@ -144,8 +149,11 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
   // The diagrams, each in its views.
   function selectDiagram(i) {
     state.diagram = i;
-    tabs($("tabs"), data.diagrams.map((d, k) => ({ id: k, label: d.title })), i, selectDiagram);
+    // A tab shows the diagram's number, and its title, the description of the
+    // process it expands, shows on hover and above the drawing.
+    tabs($("tabs"), data.diagrams.map((d, k) => ({ id: k, label: d.number || "Overview", hint: d.number ? d.title : "" })), i, selectDiagram);
     const d = data.diagrams[i];
+    $("diagram-title").textContent = d.title;
     const present = ["before", "diff", "after"].filter((v) => d[v]);
     let view = state.view[i];
     if (!present.includes(view)) {

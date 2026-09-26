@@ -92,11 +92,12 @@ func Types(src string) map[string]string {
 
 var typeComment = regexp.MustCompile(`^#\s*type:\s*(.+?)\s*=\s*(.+?)$`)
 
-// Titles returns the action line of each process in src, by number. The action
-// line is the first line of the box, without its number. Explicit numbers come
-// from the labels; without them, the numbers follow dfd's own numbering, which
-// numbers each distinct title in order after prefix, such as "2." in flow.2.dfd.
-func Titles(src, prefix string) map[string]string {
+// Descriptions returns the text of each process's box in src, by number, on
+// one line and without its number and the references in its last parentheses.
+// Explicit numbers come from the labels; without them, the numbers follow dfd's
+// own numbering, which numbers each distinct title in order after prefix, such
+// as "2." in flow.2.dfd.
+func Descriptions(src, prefix string) map[string]string {
 	lines := strings.Split(src, "\n")
 	explicit, automatic := map[string]string{}, map[string]string{}
 	numbers := map[string]bool{}   // the titles dfd has numbered
@@ -107,8 +108,12 @@ func Titles(src, prefix string) map[string]string {
 		}
 		title, _ := joined(lines, e)
 		if m := numbered.FindStringSubmatch(firstLine(title)); m != nil {
+			text := m[2]
+			if _, rest, ok := strings.Cut(title, "\n"); ok {
+				text += "\n" + rest
+			}
 			if _, seen := explicit[m[1]]; !seen {
-				explicit[m[1]] = strings.TrimSpace(m[2])
+				explicit[m[1]] = describe(text)
 			}
 			continue
 		}
@@ -119,13 +124,40 @@ func Titles(src, prefix string) map[string]string {
 		}
 		if !numbers[title] {
 			numbers[title] = true
-			automatic[prefix+strconv.Itoa(len(numbers))] = strings.TrimSpace(firstLine(title))
+			automatic[prefix+strconv.Itoa(len(numbers))] = describe(title)
 		}
 	}
 	if len(explicit) > 0 {
 		return explicit
 	}
 	return automatic
+}
+
+// describe returns a box's text on one line, without the references in its
+// last top-level parentheses.
+func describe(text string) string {
+	depth, start, from, to := 0, 0, -1, -1
+	for i, c := range text {
+		switch c {
+		case '(':
+			if depth == 0 {
+				start = i
+			}
+			depth++
+		case ')':
+			if depth == 0 {
+				continue
+			}
+			depth--
+			if depth == 0 {
+				from, to = start, i+1
+			}
+		}
+	}
+	if from >= 0 && qualified.MatchString(text[from:to]) {
+		text = text[:from] + text[to:]
+	}
+	return strings.Join(strings.Fields(text), " ")
 }
 
 // firstLine returns text up to its first line break.
