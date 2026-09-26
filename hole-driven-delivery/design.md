@@ -20,7 +20,7 @@ Leave footnotes out of the design files: dfdreview adds the links to code, types
 
 ## Numbers
 
-Write each process's number at the start of its label: `[3. Validate the sum types`, and in the child diagram of process 3, `[3.1. Collect the sum types`. dfd shows an explicit number in the box's number band. The number stays with its box when a later change inserts a box before it, so the child diagram's file name stays valid. Either every process of a diagram has a number or none has one, and the boxes of one process share its number and its label.
+Write each process's number at the start of its label: `[3. Validate the sum types`, and in the child diagram of process 3, `[3.1. Collect the sum types`. dfd shows an explicit number in the box's number band. The number stays with its box when a later change inserts a box before it, so the child diagram's file name stays valid. Either every process of a diagram has a number or none has one, and the boxes of one process share its number and its label. dfdmetrics and dfdreview also follow dfd's own numbering, so a design drawn without explicit numbers keeps working. Add its numbers in the design step of its next plan, since the freeze of step 10 covers them.
 
 ## Process boxes
 

@@ -119,6 +119,24 @@ func TestViews(t *testing.T) {
 	}
 }
 
+// dfd numbers an unnumbered child diagram only with the prefix of its process.
+func TestViewsPrefixChildNumbers(t *testing.T) {
+	d, c := change(t, true)
+	views, err := draw.Views(d, c, script(t, echo))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, v := range views {
+		prefixed := strings.Contains(v.After+v.Diff, "--number-prefix "+v.Number+".")
+		if v.Number != "" && !prefixed {
+			t.Errorf("diagram %q: dfd ran without --number-prefix %s.", v.Number, v.Number)
+		}
+		if v.Number == "" && strings.Contains(v.After, "--number-prefix") {
+			t.Errorf("the top diagram ran with a number prefix")
+		}
+	}
+}
+
 func TestViewsWithoutBase(t *testing.T) {
 	d, c := change(t, false)
 	views, err := draw.Views(d, c, script(t, echo))

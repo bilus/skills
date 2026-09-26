@@ -118,6 +118,10 @@ func render(dfd string, sheets []sheet, footnotes map[string]string) ([]View, er
 	}
 	run := func(s sheet, view, input string, patch bool) (string, error) {
 		args := []string{"--box", "300x150", "--per-row", "5", "--number", "--footnotes", defs, "-o", "-"}
+		if s.number != "" {
+			// dfd's own numbering needs the prefix; explicit numbers ignore it.
+			args = append(args, "--number-prefix", s.number+".")
+		}
 		if patch {
 			args = append(args, "--patch")
 		}

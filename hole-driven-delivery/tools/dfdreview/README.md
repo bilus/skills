@@ -36,7 +36,7 @@ dfdreview runs git, dfd and `go list std`. The dfd must have `--patch` and `--fo
 ## What the page relies on
 
 - The design has a top diagram such as `docs/flow.dfd`, with child diagrams named like `flow.3.dfd` beside it. The code directory is the directory above the design's directory, and dfdreview indexes its Go files.
-- A process label starts with its number, as in `[3. Validate the sum types`. A child diagram's tab takes its title from its box, and a click on the box's number opens the tab.
+- A process's number is the explicit number at the start of its label, as in `[3. Validate the sum types`. In a design without explicit numbers, it is dfd's own number, as dfdmetrics reads it. A child diagram's tab takes its title from its box, and a click on the box's number opens the tab.
 - A box lists its references in its last top-level pair of parentheses, as in `(analyze.sumTypes, go/format.Source)`. A reference links to the Go declaration of that name, from either version. A reference to the standard library or to another module links to pkg.go.dev.
 - A type comment, `# type: item = type`, links the item in the flow labels to its type, and the type's first qualified name opens its declaration.
 - The vocabulary's lines, `- term: definition`, give each term in a box, an entity or a store name its definition on hover.

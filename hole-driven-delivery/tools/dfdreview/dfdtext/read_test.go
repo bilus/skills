@@ -18,7 +18,17 @@ func TestTypes(t *testing.T) {
 func TestTitles(t *testing.T) {
 	src := "{3 Entity}\n> a\n[1. Read the input\n to parse it\n (p.Read)]\n> b\n[v := 2. Check it]\n> c\n[v]\n> d\n[Unnumbered]\n> e\n[3.1. Nested (p.N)]\n"
 	want := map[string]string{"1": "Read the input", "2": "Check it", "3.1": "Nested (p.N)"}
-	if got := dfdtext.Titles(src); !reflect.DeepEqual(got, want) {
+	if got := dfdtext.Titles(src, ""); !reflect.DeepEqual(got, want) {
+		t.Errorf("titles = %v, want %v", got, want)
+	}
+}
+
+// Without explicit numbers, dfd numbers each distinct title in order, after the prefix,
+// and an alias stands for the label it declares.
+func TestTitlesFollowDfdsOwnNumbering(t *testing.T) {
+	src := "{Client}\n> a\n[Read the input\n to parse it]\n> b\n[v := Check it]\n> c\n[Read the input\n to parse it]\n> d\n[v]\n> e\n[Write]\n"
+	want := map[string]string{"2.1": "Read the input", "2.2": "Check it", "2.3": "Write"}
+	if got := dfdtext.Titles(src, "2."); !reflect.DeepEqual(got, want) {
 		t.Errorf("titles = %v, want %v", got, want)
 	}
 }

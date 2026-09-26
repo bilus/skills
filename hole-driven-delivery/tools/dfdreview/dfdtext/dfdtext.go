@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -91,25 +92,58 @@ func Types(src string) map[string]string {
 
 var typeComment = regexp.MustCompile(`^#\s*type:\s*(.+?)\s*=\s*(.+?)$`)
 
-// Titles returns the action line of each process with an explicit number in src, by number.
-// The action line is the first line of the box, without its number.
-func Titles(src string) map[string]string {
+// Titles returns the action line of each process in src, by number. The action
+// line is the first line of the box, without its number. Explicit numbers come
+// from the labels; without them, the numbers follow dfd's own numbering, which
+// numbers each distinct title in order after prefix, such as "2." in flow.2.dfd.
+func Titles(src, prefix string) map[string]string {
 	lines := strings.Split(src, "\n")
-	titles := map[string]string{}
+	explicit, automatic := map[string]string{}, map[string]string{}
+	numbers := map[string]bool{}   // the titles dfd has numbered
+	aliases := map[string]string{} // the label each alias declares
 	for _, e := range elements(lines) {
 		if e.kind != process {
 			continue
 		}
-		first := e.spans[0]
-		m := numbered.FindStringSubmatch(lines[first.line][first.start:first.end])
-		if m == nil {
+		title, _ := joined(lines, e)
+		if m := numbered.FindStringSubmatch(firstLine(title)); m != nil {
+			if _, seen := explicit[m[1]]; !seen {
+				explicit[m[1]] = strings.TrimSpace(m[2])
+			}
 			continue
 		}
-		if _, seen := titles[m[1]]; !seen {
-			titles[m[1]] = strings.TrimSpace(m[2])
+		if alias := aliasOf(lines, e); alias != "" {
+			aliases[alias] = title
+		} else if label, ok := aliases[title]; ok {
+			title = label
+		}
+		if !numbers[title] {
+			numbers[title] = true
+			automatic[prefix+strconv.Itoa(len(numbers))] = strings.TrimSpace(firstLine(title))
 		}
 	}
-	return titles
+	if len(explicit) > 0 {
+		return explicit
+	}
+	return automatic
+}
+
+// firstLine returns text up to its first line break.
+func firstLine(text string) string {
+	line, _, _ := strings.Cut(text, "\n")
+	return line
+}
+
+// aliasOf returns the alias that a box's opening line declares, or "".
+func aliasOf(lines []string, e element) string {
+	first := e.spans[0]
+	head := lines[first.line][:first.start]
+	open := strings.IndexAny(head, "[{")
+	marker := strings.LastIndex(head, ":=")
+	if open < 0 || marker < open {
+		return ""
+	}
+	return strings.TrimSpace(head[open+1 : marker])
 }
 
 // Op is one line of an alignment: ' ' for a line of both versions, '-' for a

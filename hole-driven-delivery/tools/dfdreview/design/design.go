@@ -51,7 +51,7 @@ func Read(r *repo.Repo, top, vocabulary string) (*Design, error) {
 		}
 		byNumber[number] = src
 		title := number
-		if action, ok := dfdtext.Titles(latest(byNumber[parent(number)]))[number]; ok {
+		if action, ok := dfdtext.Titles(latest(byNumber[parent(number)]), prefix(parent(number)))[number]; ok {
 			title += " " + action
 		}
 		d.Diagrams = append(d.Diagrams, Diagram{Number: number, Path: children[number], Title: title, Source: src})
@@ -125,6 +125,14 @@ func parent(number string) string {
 		return number[:i]
 	}
 	return ""
+}
+
+// prefix returns what dfd's own numbering puts before the numbers inside a diagram.
+func prefix(number string) string {
+	if number == "" {
+		return ""
+	}
+	return number + "."
 }
 
 // latest returns the working tree's version of a file, or the base's for a deleted one.

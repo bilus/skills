@@ -59,6 +59,30 @@ func TestReadFindsChildDiagramsInBothVersions(t *testing.T) {
 	}
 }
 
+func TestReadTitlesAnUnnumberedDesign(t *testing.T) {
+	g := gittest.New(t)
+	g.Write(map[string]string{
+		"docs/flow.dfd":     "[Read]\n> x\n[Check the items\n (p.Check)]\n",
+		"docs/flow.2.dfd":   "[Parse]\n> y\n[Validate]\n",
+		"docs/flow.2.2.dfd": "[Split]\n",
+	})
+	r, err := repo.Open(g.Dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := design.Read(r, filepath.Join(g.Dir, "docs", "flow.dfd"), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var titles []string
+	for _, dg := range d.Diagrams {
+		titles = append(titles, dg.Title)
+	}
+	if want := []string{"Overview", "2 Check the items", "2.2 Validate"}; !reflect.DeepEqual(titles, want) {
+		t.Errorf("titles = %q, want %q", titles, want)
+	}
+}
+
 func TestReadWithoutVocabulary(t *testing.T) {
 	g := gittest.New(t)
 	g.Write(map[string]string{"docs/flow.dfd": "[A]\n"})
