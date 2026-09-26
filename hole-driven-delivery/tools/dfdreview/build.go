@@ -25,7 +25,7 @@ type Options struct {
 	NewScore   string // this review's score card, "" for none
 	Report     string // this review's dfdmetrics report, "" for none
 	DFD        string // the dfd command
-	PerRow     int    // boxes per row in the drawings, 5 when 0
+	PerRow     int    // boxes per row in the drawings, 3 when 0
 	Out        string // the page to write
 }
 

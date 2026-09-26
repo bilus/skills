@@ -27,7 +27,7 @@ type View struct {
 // Command is how dfd runs: the command and the boxes per row of each drawing.
 type Command struct {
 	Name   string // the dfd command
-	PerRow int    // boxes per row, 5 when 0
+	PerRow int    // boxes per row, 3 when 0
 }
 
 // Views draws each diagram of d in its views, with links to code, types and terms.
@@ -125,7 +125,7 @@ func render(dfd Command, sheets []sheet, footnotes map[string]string) ([]View, e
 	run := func(s sheet, view, input string, patch bool) (string, error) {
 		perRow := dfd.PerRow
 		if perRow <= 0 {
-			perRow = 5
+			perRow = 3
 		}
 		args := []string{"--box", "300x150", "--per-row", strconv.Itoa(perRow), "--number", "--footnotes", defs, "-o", "-"}
 		if s.number != "" {

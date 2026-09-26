@@ -27,7 +27,7 @@ func run(args []string, stderr io.Writer) int {
 	flags.StringVar(&opts.NewScore, "new-score", "", "this review's score card, from dfdmetrics -score")
 	flags.StringVar(&opts.Report, "report", "", "this review's report, from dfdmetrics")
 	flags.StringVar(&opts.DFD, "dfd", "dfd", "the dfd command")
-	flags.IntVar(&opts.PerRow, "per-row", 5, "boxes per row in the drawings")
+	flags.IntVar(&opts.PerRow, "per-row", 3, "boxes per row in the drawings")
 	flags.StringVar(&opts.Out, "o", "", "the page (default: review/index.html beside the design)")
 	flags.Usage = func() {
 		complain(stderr, "usage: dfdreview [flags] docs/flow.dfd")

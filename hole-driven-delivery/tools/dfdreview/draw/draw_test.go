@@ -139,7 +139,7 @@ func TestViewsPrefixChildNumbers(t *testing.T) {
 
 func TestViewsBoxesPerRow(t *testing.T) {
 	d, c := change(t, true)
-	for perRow, want := range map[int]string{0: "--per-row 5", 3: "--per-row 3"} {
+	for perRow, want := range map[int]string{0: "--per-row 3", 5: "--per-row 5"} {
 		views, err := draw.Views(d, c, draw.Command{Name: script(t, echo), PerRow: perRow})
 		if err != nil {
 			t.Fatal(err)

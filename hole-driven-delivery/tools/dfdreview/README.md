@@ -27,7 +27,7 @@ dfdreview -base <commit> -plan docs/plans/<plan>.md \
 | `-report FILE` | This review's report, from `dfdmetrics`. |
 | `-vocabulary FILE` | The vocabulary, by default `vocabulary.md` beside the design. |
 | `-dfd PATH` | The dfd command, by default `dfd`. |
-| `-per-row N` | The boxes per row of each drawing, 5 by default. |
+| `-per-row N` | The boxes per row of each drawing, 3 by default. |
 | `-o FILE` | The page, by default `review/index.html` beside the design. |
 
 The command exits with status 0 after writing the page, 2 after a usage error, and 1 after any other error. An error names its input: the file, the revision, or the diagram and view that dfd rejected, as in `docs/flow.3.dfd (diff):7: ...`.
