@@ -66,7 +66,7 @@ Draw the top diagram in the dfd format, following `design.md`: one box per top-l
 - A process box starts with its number, as in `[3. Validate the sum types`, so the number stays put when a box is inserted before it.
 - A process box states the step's action, its purpose for the later steps (unless the outgoing arrow's label already gives it), and the functions behind it.
 - An arrow label names the input data of the next step, and a `# type:` comment gives its type.
-- Every piece of I/O is drawn: a read or a write of a file, a database or another store is a store arrow, and a call to an outside system is an arrow to or from an external system beside the process, as in `<Event bus>`. Every write has a matching read.
+- Every piece of I/O is drawn. The program's own state is a store. Anything outside the program is an external system beside the process, as in `<Event bus>`, and that includes the user's own files and directories. dfdmetrics counts store items only, and every store write has a matching read.
 - A process gets a child diagram in the stage whose fill splits its function into steps. State stays inside the smallest process that uses it, and the top diagram shows only the data and the state shared across its boxes.
 - Each box references one package of the design.
 

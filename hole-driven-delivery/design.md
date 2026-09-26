@@ -42,11 +42,12 @@ The action line and the doc comment of the box's first reference say the same th
 
 ## Stores, external systems and I/O
 
-- Every piece of I/O is drawn. A read or a write of state that outlives one call, such as a file, a directory, a database or a cache, is a store arrow. A call to a system outside the program, such as sending an event or an HTTP request, is an arrow to or from an external system beside the process: `> order placed` and `< ack` before `<Event bus>`. dfdmetrics leaves external systems out of the state items.
-
-- A store stands for state that outlives one call: a struct filled in place, a map, a file, a directory.
+- Every piece of I/O is drawn, as a store arrow or as an arrow to or from an external system.
+- A store holds state that belongs to the program: a struct filled in place, a map, a cache, or a working file for a later step.
+- An external system is anything outside the program that receives the program's output or supplies its input: a service, an event bus, and the files and directories that belong to the user. A tool that reads the user's source directories and writes generated files into them talks to `<Package directories>`, not to a store. Draw it beside the process, with `>` for data sent and `<` for data received: `> order placed` and `< ack` before `<Event bus>`.
+- dfdmetrics counts store items only, so the arrows of an external system raise no finding and no score.
 - A store arrow's label lists state items, separated by commas. The store and the label together identify an item, so a write and the read of one item use the same store and the same label.
-- Every write needs a read. A store read only from outside the flow, such as a build's input files, shows as a dead item. Record it in the ledger as expected, and keep the store in the diagram of its writer.
+- Every write to a store needs a read in the flow, and every read a write. A store item written or read outside the program belongs to an external system instead.
 - Prefer arrows to stores. An item read only by the next step belongs on the arrow between the two steps.
 
 ## Levels and boundaries
@@ -69,8 +70,8 @@ The action line and the doc comment of the box's first reference say the same th
 
 | dfdmetrics finding | Meaning | Usual fix |
 |---|---|---|
-| dead item | written, never read | Remove the write, or draw the reader. Record an external reader in the ledger. |
-| orphan item | read, never written | Draw the writer, or give the write and the read the same label. |
+| dead item | written, never read | Remove the write, or draw the reader. When something outside the program reads the data, draw its destination as an external system. |
+| orphan item | read, never written | Draw the writer, or give the write and the read the same label. When the data comes from outside the program, draw its source as an external system. |
 | read before write | a read positioned before the first write in the item's home | Reorder the steps, or separate two items with one label. |
 | arrow candidate | read only by the box after the writer in the item's home, with no entity between them | Return the item and put it on the arrow. |
 | unmatched summary | a summary without a matching access below it | Draw the access in the child diagram, or drop the summary. |
@@ -82,7 +83,8 @@ The action line and the doc comment of the box's first reference say the same th
 
 ## Common mistakes
 
-- Leaving out a read of a store, such as a step that loads the files that an earlier step or run wrote to a directory.
+- Leaving out a read of a store, such as a step that loads a file that an earlier step wrote.
+- Drawing the user's files or directories as a store. Their reads show as orphan items and their writes as dead items. Draw them as an external system.
 - Drawing an external system that a step calls as a step of the flow, `{Mail server}`, instead of beside the step, `<Mail server>`.
 - Drawing steps before their functions exist. A box without a declaration misleads the reviewer, and the review page reports it. Draw a finer step with the fill that creates its function.
 - Listing a struct's fields on an arrow when the next function takes the struct itself.
