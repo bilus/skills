@@ -54,7 +54,9 @@ body.resizing { cursor: col-resize; user-select: none; }
 #drawing a[href]:hover tspan, #drawing a[href]:focus tspan { fill: #4a37b0; }
 #drawing .child { cursor: pointer; fill: #4a37b0; text-decoration: underline; }
 #drawing .missing tspan { fill: #b3261e; }
-#drawing a[href] tspan.changed, #drawing a[href]:hover tspan.changed, #drawing a[href]:focus tspan.changed { fill: #b3261e; font-weight: 700; }
+/* A larger asterisk stays visible in a scaled-down drawing; the shift keeps it on its line. */
+#drawing a[href] tspan.changed, #drawing a[href]:hover tspan.changed, #drawing a[href]:focus tspan.changed {
+  fill: #b3261e; font-weight: 700; font-size: 1.7em; baseline-shift: -0.35em; }
 h2 { font-size: 14px; margin: 22px 0 6px; }
 #diagram-title { font-size: 15px; margin: 2px 0 8px; }
 .prose p { margin: 0 0 8px; max-width: 70em; }
