@@ -29,7 +29,7 @@ A stage boundary reads each diagram of the design at the base and in the working
 
 ## Metaphor
 
-An editor's proof packet: the old copy, the new copy, and a marked-up copy with the deletions struck through and the insertions in color, bound with the reviewer's notes. Rules a reader would infer, checked at both levels: the marked copy marks each change once, in place, and leaves unchanged text plain (4.1 aligns the sources before any link); text flows, so an insertion moves what follows it (dfd fills its rows in order); the packet keeps the old and the new copy intact beside the marked one (the Before and After views); a margin reference in a copy points to the sources of that copy's edition (a link in the Before view opens the base version of the code); binding the packet adds the notes and changes no copy (step 5 writes the page and changes no drawing).
+The review page is an editor's proof packet. Each changed drawing and file comes as the old copy, a marked-up copy and the new copy. A reference in a box is a citation that opens its source. The packet ends with the editor's notes: the plan's brief, the score cards and the report.
 
 ## Planned declarations
 

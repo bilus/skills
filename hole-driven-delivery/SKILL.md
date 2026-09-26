@@ -76,7 +76,9 @@ List the planned declarations in the plan: every design-package function and typ
 
 ### 4. Metaphor
 
-Name one system metaphor in the plan: the story of the top diagram, such as a tally sheet, a compiler's passes, or a pipeline with a barrier. A technical metaphor works as well as a figurative one. A metaphor is a model, and a reader infers rules from it, as "stack" implies push and pop at one end. List the rules implied by the metaphor, and check each against the design, level by level. For each broken rule, fix the design or change the metaphor, and name the level of the first break.
+Write one system metaphor in the plan: the top diagram as one familiar thing, such as a tally sheet, a compiler's passes, or a pipeline with a barrier. In at most 60 words, name the thing and match three or four of its parts to parts of the design, as in "Components are bricks, and the code between them is mortar." Choose a thing whose most obvious behavior matches the design's main property, and let the reader imagine the rest.
+
+A reader infers rules from a metaphor, as "stack" implies push and pop at one end. The design review (step 5), not the metaphor, lists those rules and checks each against the design. For each broken rule, fix the design or change the metaphor, and record the decision and the level of the first break in the ledger.
 
 ### 5. Reviews and score
 

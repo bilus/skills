@@ -13,7 +13,7 @@ The design also gets measured. The bundled dfdmetrics tool reports how much stat
 ## What the agent will do
 
 1. Write `docs/plans/<date>-<feature>.md` with numbered requirements, then a vocabulary of the terms the change introduces, reviewed by a sub-agent for redundancy.
-2. Draw the leveled design in `docs/flow.dfd` and its child diagrams, name a system metaphor and check the rules a reader would infer from it, and list every planned declaration.
+2. Draw the leveled design in `docs/flow.dfd` and its child diagrams, write a system metaphor of at most 60 words, and list every planned declaration. A sub-agent reviews the design and checks it against the rules implied by the metaphor.
 3. Measure the design, save the score card, build the review page with the bundled dfdreview tool, and stop for your approval of the plan.
 4. Commit the skeleton: the planned declarations with every body a tagged hole that typechecks and fails loudly if executed. The existing suite stays green. It stops for review, and the approved signatures are frozen.
 5. Fill one group of holes per stage: one hole open at a time, the build never red, each fill landing with the tests that pin its contract. The budget is 100 to 300 lines per stage, with a hard cap of 400. After the skeleton, a change to the design or the vocabulary waits for your approval, and the agent prefers a change inside a function to a change of an interface between processes.

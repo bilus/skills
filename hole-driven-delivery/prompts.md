@@ -40,7 +40,10 @@ dfdmetrics report: <paste the output of dfdmetrics docs/flow.dfd>
    an arrow instead? Which data is carried through a step that does not use it?
 4. Levels: is each store drawn in the smallest process that uses it? Does each parent diagram
    show only the data and state that cross the boundary?
-5. Metaphor: which rule that a reader would infer from the plan's metaphor fails, and at which level?
+5. Metaphor: read the plan's Metaphor section first, before any diagram, and list its implied
+   rules, as "stack" implies push and pop at one end. Check each rule against the design, level
+   by level, and report each broken rule with the level of its first break. Is the section one
+   familiar thing and three or four of its parts, in at most 60 words?
 6. Changes: for a change to an existing design, run git diff <base> on the dfd files. Could a
    change inside a function's body replace a changed interface, or a change in a deeper
    diagram replace one in a higher diagram?
