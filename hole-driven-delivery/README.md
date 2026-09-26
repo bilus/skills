@@ -6,24 +6,24 @@ Not to be confused with [jhhuh's hole-driven-delivery skill](https://github.com/
 
 ## Why this approach
 
-Review capacity is the bottleneck with agents, and the hardest thing to review late is architecture. This skill moves the architecture review to the front and makes it cheap in two steps. First comes the top level of the design: a dfd diagram in which every box names the function that does the step and says why the later steps need it, every arrow names its type, and every change of state in place is a write to a store. Then comes the skeleton: the declarations of exactly the functions that the diagram names, with every body a hole. Each lower level of the design comes with the stage whose fill creates its functions. After that, the compiler becomes the agent's oracle, and `grep -rn "HOLE("` is a progress bar that survives any loss of agent context.
+Review capacity is the bottleneck with agents, and the hardest thing to review late is architecture. This skill moves the architecture review to the front and makes it cheap in two steps. The first review shows the top level of the design together with its skeleton. The design is a dfd diagram in which every box names the function that does the step and says why the later steps need it, every arrow names its type, and every change of state in place is a write to a store. The skeleton declares exactly the functions that the diagram names, with every body a hole, and the holes are what you review: names, types, seams and each body's contract, beside the diagram. Each lower level of the design comes with the stage whose fill creates its functions, again together with its code. After that, the compiler becomes the agent's oracle, and `grep -rn "HOLE("` is a progress bar that survives any loss of agent context.
 
 The design also gets measured. The bundled dfdmetrics tool reports how much state the design shares, at which level, and how far each read sits from its write, and it flags boxes that span two packages. At every review, the page shows the new score card beside the last approved one, so you can see whether a stage made the design better or worse.
 
 ## What the agent will do
 
 1. Write `docs/plans/<date>-<feature>.md` with numbered requirements, then a vocabulary of the terms the change introduces, reviewed by a sub-agent for redundancy.
-2. Draw the top diagram of the design in `docs/flow.dfd`, write a system metaphor of at most 60 words, and list every planned declaration. A sub-agent reviews the design and checks it against the rules implied by the metaphor.
-3. Measure the design, save the score card, build the review page with the bundled dfdreview tool, and stop for your approval of the plan.
-4. Commit the skeleton: the planned declarations with every body a tagged hole that typechecks and fails loudly if executed. The existing suite stays green. It stops for review, and the approved signatures are frozen.
-5. Fill one group of holes per stage: one hole open at a time, the build never red, each fill landing with the tests that pin its contract. A fill that splits a function into steps first draws that process's child diagram. The budget is 100 to 300 lines per stage, with a hard cap of 400. After the skeleton, a change to the design or the vocabulary waits for your approval, and the agent prefers a change inside a function to a change of an interface between processes.
+2. Draw the top diagram of the design in `docs/flow.dfd`, write a system metaphor of at most 60 words, and declare the diagram's functions and types as a compiling skeleton, with every body a tagged hole that fails loudly if executed. The existing suite stays green. A sub-agent reviews the design and checks it against the rules implied by the metaphor.
+3. Measure the design, save the score card, build the review page with the bundled dfdreview tool, which links every box to its declaration, and stop for your approval of the plan, the design and the skeleton together.
+4. After your approval, commit the plan and the skeleton. The approved signatures, the top diagram and the vocabulary are frozen.
+5. Fill one group of holes per stage: one hole open at a time, the build never red, each fill landing with the tests that pin its contract. A fill that splits a function into steps draws that process's child diagram and declares the new functions with holes, in the same stage. The budget is 100 to 300 lines per stage, with a hard cap of 400. After the plan gate, a change to the design or the vocabulary waits for your approval, shown with its code, and the agent prefers a change inside a function to a change of an interface between processes.
 6. At every boundary, quote a fresh full-suite run and the hole census, check the design against the code, save the score card, rebuild the review page against the stage's start, write the handoff, and halt.
 7. After your final sign-off, reshape the history to one commit per stage, with messages that describe the change and not the method.
 8. For the next feature, run the same loop on the existing design: propose its changes to the diagrams and the vocabulary, then add the first layer of holes, some of them in existing functions.
 
 ## What you do
 
-- Approve the requirements, the vocabulary, the design and the stages at the plan gate. The design and the skeleton are where your review time pays most.
+- Approve the requirements, the vocabulary, the design with its skeleton, and the stages at the plan gate. That review is where your time pays most.
 - At each halt, open the review page, check the score's changes, and answer the handoff's one review question.
 - Approve any proposed signature change, design change or change to an existing test. The agent may not make these alone.
 - In dynamic languages, expect full type annotations and a typechecker in the gate.

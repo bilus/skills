@@ -28,13 +28,15 @@ Review a leveled data flow design against its rules. Do not edit anything; repor
 Rules: <this skill's directory>/design.md
 Design: <paths of the dfd files>
 Plan: <plan path>
-Code: <paths, if any exists>
+Code: <paths of the skeleton and of every file the change touches>
 Base: <the commit before the change, for a change to an existing design>
 dfdmetrics report: <paste the output of dfdmetrics docs/flow.dfd>
 
 1. Boxes: does the action line say what the referenced functions do? Does the purpose line
    point at a later step? Are the references in the last parentheses, from one design package?
-2. Arrows: does each label name what the next process receives? Does any arrow claim a value
+   Does every reference resolve to a declaration in the code?
+2. Arrows: does each label name what the next process receives, item for item with the next
+   function's declared parameters and their types? Does any arrow claim a value
    that a step changes in place and does not return?
 3. State: for each store item, which write and which read pair up? Which item could travel on
    an arrow instead? Which data is carried through a step that does not use it?

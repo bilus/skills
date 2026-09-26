@@ -5,15 +5,15 @@ description: Use when implementing any feature, service, or multi-step coding ta
 
 # Hole-driven delivery
 
-You deliver a change as a sequence of reviewed stages. First you and your human partner agree on the requirements, the vocabulary and the top level of a data flow design. Then you commit the top-level functions as a compiling skeleton, with every body a named hole, and you fill the holes one at a time. The compiler's errors and the tests constrain each hole's body. The design comes before the code: each function takes its shape from a diagram. A fill that splits a function into steps first draws that process's child diagram, so the design grows one level at a time. An approved diagram changes only with your human partner's approval, and so does the vocabulary. At every stage boundary you rebuild a review page that shows the design and the code before the stage, as a diff and after it, with the new score beside the last approved one, and you halt until your human partner approves the stage.
+You deliver a change as a sequence of reviewed stages, and every review shows a diagram together with its code. The first review, the plan gate, shows the requirements, the vocabulary, the top level of a data flow design and its compiling skeleton: each box's function declared, with a named hole for its body. The holes are what your human partner reviews. Then you fill the holes one at a time. The compiler's errors and the tests constrain each hole's body. The design comes before the code: you draw a diagram first and declare its functions second, and your human partner reviews the two at once. A fill that splits a function into steps draws that process's child diagram and declares the new functions with holes, in the same stage, so the design grows one level at a time. An approved diagram changes only with your human partner's approval, and so does the vocabulary. At every stage boundary you rebuild a review page that shows the design and the code before the stage, as a diff and after it, with the new score beside the last approved one, and you halt until your human partner approves the stage.
 
-Announce at start: "Using hole-driven-delivery: requirements, vocabulary and design, then a typechecked skeleton, then holes filled outside-in, halting at every stage boundary with a review page and a score." Create one todo per outer-loop step now, and one per plan stage after approval.
+Announce at start: "Using hole-driven-delivery: requirements, vocabulary, and a top diagram reviewed with its typechecked skeleton, then holes filled outside-in, with each lower diagram drawn beside its code, halting at every stage boundary with a review page and a score." Create one todo per outer-loop step now, and one per plan stage after approval.
 
 ## The iron laws
 
 ```
-1. NO CODE BEFORE AN APPROVED PLAN. THE PLAN INCLUDES THE REQUIREMENTS, THE VOCABULARY AND THE DESIGN.
-2. THE DESIGN LEADS. EACH LEVEL IS DRAWN BEFORE ITS CODE, AND AN APPROVED DIAGRAM OR TERM CHANGES ONLY WITH APPROVAL.
+1. NO IMPLEMENTATION BEFORE AN APPROVED PLAN. THE PLAN GATE REVIEWS THE REQUIREMENTS, THE VOCABULARY, THE TOP DIAGRAM AND ITS SKELETON OF HOLES.
+2. A DIAGRAM AND ITS CODE CHANGE TOGETHER. EVERY BOX IN A REVIEW HAS ITS FUNCTION, DECLARED WITH A HOLE OR FILLED. AN APPROVED DIAGRAM OR TERM CHANGES ONLY WITH APPROVAL.
 3. NO IMPLEMENTATION BEFORE A GREEN SKELETON. EVERY NEW BODY STARTS AS A NAMED HOLE.
 4. THE BUILD IS NEVER RED. ONE HOLE OPEN AT A TIME.
 5. HALT AT EVERY STAGE BOUNDARY, WITH THE REVIEW PAGE AND THE SCORE UP TO DATE.
@@ -39,7 +39,7 @@ The design rules use Go's terms: types, import paths, the standard library. In a
 
 | File | Holds |
 |---|---|
-| `docs/plans/<date>-<feature>.md` | the plan: requirements, questions and assumptions, the change in brief, the metaphor, the planned declarations, the stages |
+| `docs/plans/<date>-<feature>.md` | the plan: requirements, questions and assumptions, the change in brief, the metaphor, the stages |
 | `docs/plans/<date>-<feature>.ledger.md` | the ledger, one line per event |
 | `docs/vocabulary.md` | the terms, one per line: `- term: definition` |
 | `docs/flow.dfd`, `docs/flow.N.dfd`, `docs/flow.N.M.dfd` and so on | the leveled design: the top diagram and one child diagram per decomposed process |
@@ -53,13 +53,13 @@ Another agent must be able to resume the work from these files, `git log` and th
 
 ### 1. Requirements
 
-Write the plan before touching any source file, and create the ledger beside it (step 8). If the task has no spec, the plan's first section is the spec: numbered, testable requirements. For each question you would ask your human partner, write the question and your assumption in the plan, and continue to the gate.
+Write the plan before touching any source file, and create the ledger beside it (step 8). If the repository's instructions name a branch for all work, use it. Otherwise create a branch or worktree now, never main or master, since the skeleton comes before the gate. If the task has no spec, the plan's first section is the spec: numbered, testable requirements. For each question you would ask your human partner, write the question and your assumption in the plan, and continue to the gate.
 
 ### 2. Vocabulary
 
 Start `docs/vocabulary.md` from the requirements, with one line per term and a definition checked against the requirements. Add the names of processes, data and stores during step 3, and the words of the metaphor during step 4. Step 5 reviews the whole vocabulary before the gate.
 
-### 3. Design
+### 3. Design and skeleton
 
 Draw the top diagram in the dfd format, following `design.md`: one box per top-level process, each typically with a function of its own. Child diagrams come later, with the fills that create their functions (see the fill loop). In short:
 
@@ -72,7 +72,7 @@ Draw the top diagram in the dfd format, following `design.md`: one box per top-l
 
 The code follows the diagram. Each decomposed process is one named function or method, and its body calls the functions of its child processes in the order of its diagram, so the top function reads like the top diagram. A leaf box typically references its process's own function, and it may reference several functions of one package. Its action line matches the doc comment of its first reference.
 
-List the planned declarations in the plan: every design-package function and type in the boxes' references and the `# type:` comments, plus the skeleton's modules and wiring, each with its signature and a one-line contract. The skeleton implements exactly this list.
+Then write the skeleton (see the inner strategy): declare every function and type that the boxes' references and the `# type:` comments name, with each body a named hole whose sentence is its contract. Draw first and declare second, so each signature takes its shape from the diagram. The holes are the input of the review: a box without its declared function, or a function without its box, gives your human partner nothing to check.
 
 ### 4. Metaphor
 
@@ -111,7 +111,7 @@ The score cannot see data carried through a step that does not use it: an item t
 
 Every stage in the plan has these fields:
 
-- Goal: one sentence about behavior, "the system now does X, observably". Stage 1, the skeleton, is the one exception: its goal is the design itself.
+- Goal: one sentence about behavior, "the system now does X, observably".
 - Requirement: the number of the stage's requirement.
 - Dependencies: the stages that must land first.
 - Holes: the IDs of the holes filled in this stage (see the hole convention).
@@ -122,9 +122,9 @@ The budget is 100 to 300 net hand-written lines per stage, with a hard cap of 40
 
 ### 7. Plan approval gate
 
-Save the first report and score card (step 5), build the review page with dfdreview (see `review-page.md`), then present the plan and the page, and wait for your human partner's approval. Until the skeleton commit, a function or type link on the page reports a missing declaration, and the plan's planned declarations say what each will be. Do not write code, scaffold projects, or "just set up the basics" while you wait for approval.
+Save the first report and score card (step 5), build the review page with dfdreview (see `review-page.md`), then present the plan and the page, and wait for your human partner's approval. Every function or type link on the page opens a declaration of the skeleton. Fix any missing declaration that the page reports before you present the plan. Do not fill any hole while you wait for approval.
 
-Your human partner approves the requirements, the vocabulary, the design and the stages. A later change to any of them is a plan diff, approved the same way. If the repository's instructions name a branch for all work, use it. Otherwise create a branch or worktree, never main or master. Then commit the plan, the ledger, the vocabulary, the design, the report, the score card and the review page, and start stage 1.
+Your human partner approves the requirements, the vocabulary, the top diagram with its skeleton, and the stages. Approval freezes the signatures, the top diagram and the vocabulary. A later change to any of them is a plan diff, approved the same way. Then commit the plan, the ledger, the vocabulary, the design, the skeleton, the report, the score card and the review page, and start stage 1.
 
 ### 8. The ledger
 
@@ -137,6 +137,7 @@ A stage is done only when it meets every item of this checklist:
 - [ ] The build, lint, typecheck and full test suite all pass in a fresh run in this message, and the handoff quotes the output.
 - [ ] The stage's acceptance check passes in a fresh run, and the handoff quotes its output.
 - [ ] The handoff quotes the hole census with its change since the last stage. The census does not show any of the stage's claimed holes, and the plan lists each hole added in the stage.
+- [ ] Every box that this stage added or changed comes with its code in this stage's diff, and every function that this stage declared has its box.
 - [ ] The design matches the code. Every reference in a box resolves to a declaration, every `# type:` names a declared type, every function called directly by the top function or by a decomposed process's function has a box in the matching diagram, and the diagrams show the current form of every flow changed in this stage. A call inside a leaf box's function needs no box.
 - [ ] After a change to the diagrams, the design review from `prompts.md` ran again, and the ledger records a decision on each finding.
 - [ ] The stage's report and score card are in `docs/review/`, and every rise over the cached card has a ledger line.
@@ -150,7 +151,7 @@ A stage is done only when it meets every item of this checklist:
 Then write the handoff and wait for your human partner's review. If the repository uses pull requests, open one pull request for the change branch at the first boundary, and post each later handoff on it as a comment. Otherwise present the handoff in the conversation.
 
 ```
-Stage: <n of N>   Type: <skeleton | fill | refactor | fixtures | migration-phase>   Requirement: <number>
+Stage: <n of N>   Type: <fill | refactor | fixtures | migration-phase>   Requirement: <number>
 Claim: <one sentence: what this stage makes true>
 Holes: <filled: ids / added: ids / remaining: count>
 Size: <net hand-written lines>, generated: <files, or none>
@@ -163,15 +164,15 @@ Review page: <path or link>
 Review focus: <the one question the reviewer should answer>
 ```
 
-### 10. Changes after the skeleton
+### 10. Changes after the plan gate
 
-The skeleton's approval freezes the top diagram and the vocabulary, and a stage's approval freezes the child diagrams it drew. A child diagram that a fill draws for its own process belongs to that fill, and your human partner reviews it at the boundary. When the work needs a change to a frozen diagram or to the vocabulary, choose the first of these that does the job:
+The plan's approval freezes the top diagram and the vocabulary, and a stage's approval freezes the child diagrams it drew. A child diagram that a fill draws for its own process belongs to that fill, and your human partner reviews it at the boundary. When the work needs a change to a frozen diagram or to the vocabulary, choose the first of these that does the job:
 
 1. A change inside a function's body. The body may call new unexported helpers of its own package: they belong to the box of the function, and the diagrams do not change.
 2. A change to an interface between processes in the deepest diagram that holds it: an arrow's label or type, a store item, a new child process.
 3. A change to an interface in a higher diagram.
 
-A change of kind 2 or 3 changes the design, and so does a new or changed term in the vocabulary. Stop the stage, and ask your human partner for approval with the reason, as a plan diff. After the approval, change the diagram and the vocabulary first, then the code. The code never silently leaves the diagram.
+A change of kind 2 or 3 changes the design, and so does a new or changed term in the vocabulary. Stop the stage, and ask your human partner for approval with the reason, as a plan diff that shows the changed diagram together with its code: the changed signatures, and a hole for each new or changed body. The code never silently leaves the diagram.
 
 - If the code shows that the design or the requirements are wrong, stop the stage in the same way.
 - A new hole within the stage's scope needs no approval when the frozen diagrams stay as they are: a hole in a function body, a new unexported helper, or a function in the child diagram that the fill draws for its own process. Declare it (see the fill loop), and your human partner reviews it at the boundary. A change to an approved signature, requirement or stage is a plan diff, and it halts the stage.
@@ -200,9 +201,9 @@ Otherwise, only after your human partner approves the final stage, reshape the b
 
 When the last stage is done, the next feature runs the outer loop again, on the existing design and code:
 
-- Its plan proposes changes to the existing diagrams and vocabulary, following the order of step 10: the smallest change that does the job. Build the plan gate's review page with the commit before the feature as the base, so the Diff views show the proposal.
-- Its skeleton stage adds the new declarations and the first layer of holes, including holes in existing functions: a new branch or a new call in an existing body starts as a hole. Where an inline change reads better than a hole, as in a renamed call or one new argument, change the code inline.
-- After its skeleton, the rules of step 10 apply again.
+- Its plan proposes changes to the existing diagrams and vocabulary, following the order of step 10: the smallest change that does the job.
+- Its plan gate shows those changes together with their code: the new declarations and the first layer of holes, including holes in existing functions. A new branch or a new call in an existing body starts as a hole. Where an inline change reads better than a hole, as in a renamed call or one new argument, change the code inline. Build the review page with the commit before the feature as the base, so the Diff views show the proposal in the diagrams and in the code.
+- After its plan gate, the rules of step 10 apply again.
 
 ## The inner strategy: skeleton, then fill
 
@@ -218,15 +219,15 @@ A hole is an unimplemented body that satisfies the typechecker, fails loudly at 
 
 The number is the stage that fills the hole, and the sentence is its contract: the required behavior of a correct body. A hole's ID is its stage number and the name of the function that holds it, as in `3 header.Parse`. When one function holds several holes, number them in the order of the body: `3 header.Parse#2`. In a dynamically typed language, every function with a hole gets full type annotations, and the plan names the typechecker, such as mypy or tsc, for the stage-boundary checks.
 
-### Stage 1: the skeleton
+### The skeleton
 
-Write the planned declarations and nothing else: each type, function signature, module and piece of wiring, with every new body a hole and zero logic. A body that only calls the planned functions in the order of its diagram, such as the top function, may be real code in the skeleton, because it is the diagram written in code. The build, the typecheck and the existing suite all stay green. Then check the design against the skeleton (the design item of the stage-boundary checklist), and point the review page's links at the source.
+Write the declarations that the top diagram names and nothing else: each type, function signature, module and piece of wiring, with every new body a hole and zero logic. A body that only calls the declared functions in the order of its diagram, such as the top function, may be real code in the skeleton, because it is the diagram written in code. The build, the typecheck and the existing suite all stay green. Before the plan gate, check the design against the skeleton with the design items of the stage-boundary checklist.
 
-Commit the skeleton alone and halt for your human partner's review. Your human partner reviews the names, types, seams and dependency direction over a few hundred lines of declarations, beside their diagram. Approval at this boundary freezes the signatures, the top diagram and the vocabulary. A later change to any of them is a plan diff that starts in the diagram (step 10).
+The plan gate presents the skeleton beside its diagram. Your human partner reviews the names, types, seams and dependency direction over a few hundred lines of declarations, and each hole's sentence says what its body will do. Approval freezes the signatures, the top diagram and the vocabulary. A later change to any of them is a plan diff that shows the diagram and the code together (step 10).
 
 ### The fill loop
 
-Each later stage fills the holes listed in its plan entry, one hole at a time:
+Each stage fills the holes listed in its plan entry, one hole at a time:
 
 1. Pick the next hole outside-in: the open hole nearest the entry point whose tests do not execute another open hole. Break ties by taking the most constrained hole, the one whose types, callers and contract admit the fewest implementations.
 2. Before you write the body, read the hole's signature, its contract sentence, its call sites, and the typechecker's report on the body. The compiler's output is the spec of the hole.
@@ -249,8 +250,9 @@ A code comment describes the thing or its behavior in fewer than fifteen words. 
 | Excuse | Reality |
 |---|---|
 | "I'll update the diagram once the code settles" | The diagram comes before the code. With a stale diagram, the reviewer judges, and the score measures, a design missing from the code. |
+| "The reviewer can judge the design from the diagram alone, and the skeleton can wait for approval" | A diagram without its code hides the signatures, and no box links to anything. The holes are what the reviewer checks, so the diagram and its skeleton go to the plan gate together. |
 | "I'll draw the lower levels now, so the reviewer sees the whole design" | A box without a function misleads the reviewer, and the review page reports its missing declaration. A child diagram comes with the fill that creates its functions. |
-| "This new arrow is small, so I'll mention it at the boundary" | After the skeleton, a change to the diagrams or the vocabulary needs approval before the code changes. Ask first. |
+| "This new arrow is small, so I'll mention it at the boundary" | After the plan gate, a change to a frozen diagram or to the vocabulary needs approval, shown with its code. Ask first. |
 | "Changing the top diagram is cleaner than working inside this box" | A change inside a body beats a change to an interface, and a change deep in the design beats one near the top. Take the first that does the job. |
 | "The arrow can show the updated value" | An arrow claims that the step returns the value. A change in place is a store write. |
 | "One weighted score is easier to track" | Invented weights hide the trade-offs between columns. Track each column, and explain every rise. |
@@ -267,4 +269,4 @@ A code comment describes the thing or its behavior in fewer than fifteen words. 
 
 ## Red flags
 
-Stop and reread the laws if you catch yourself thinking any of these: "I'll draw the diagram after the code". "This mutation can go on the arrow". "The top diagram can show every store". "This box can call two packages". "I'll skip the score this stage". "I'll skip the skeleton for this one". "Let me rough out several bodies and fix the types later". "This stub does not need a name or a contract". "I'll batch the whole fill into one commit at the end". "The signature is wrong, but changing it now is faster than a plan diff". "I'll add a box now and explain it at the boundary". "I'll sketch the lower levels now and write their functions later". Each of these means: return to the plan and the diagram, restore the green build, and halt now, with a ledger line on the cause.
+Stop and reread the laws if you catch yourself thinking any of these: "I'll draw the diagram after the code". "This mutation can go on the arrow". "The top diagram can show every store". "This box can call two packages". "I'll skip the score this stage". "I'll skip the skeleton for this one". "Let me rough out several bodies and fix the types later". "This stub does not need a name or a contract". "I'll batch the whole fill into one commit at the end". "The signature is wrong, but changing it now is faster than a plan diff". "I'll add a box now and explain it at the boundary". "I'll sketch the lower levels now and write their functions later". "I'll get the design approved first and write the skeleton after". Each of these means: return to the plan and the diagram, restore the green build, and halt now, with a ledger line on the cause.
