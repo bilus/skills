@@ -4,7 +4,7 @@ How to compare `tracer-bullet-delivery`, `hole-driven-delivery`, and `test-ratch
 
 All three skills share an identical outer loop (plan approval, ledger, LOC budget, halt-at-boundary) and differ only in the inner growth strategy, so differences you observe are attributable to the strategy.
 
-One exception: since 0.2.0, `hole-driven-delivery` also agrees a vocabulary and a leveled data flow design before the skeleton, and records a design score at every review. Its runs from 0.2.0 on measure the strategy together with that design step, so compare them only with runs of the same version. A run needs `dfd` and `dfdmetrics` installed; see `hole-driven-delivery/README.md`.
+One exception: since 0.2.0, `hole-driven-delivery` also agrees a vocabulary and a leveled data flow design before the skeleton, and records a design score at every review. Its runs from 0.2.0 on measure the strategy together with that design step, so compare them only with runs of the same version. Since 0.4.0, its holes return mock data under a smoke test instead of failing at run time. A run needs `dfd`, `dfdmetrics` and `dfdreview` installed. See `hole-driven-delivery/README.md`.
 
 ## What's here
 
