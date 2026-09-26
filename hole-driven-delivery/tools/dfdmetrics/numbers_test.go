@@ -40,9 +40,9 @@ func TestLoadRejectsBadExplicitNumbers(t *testing.T) {
 		want  string
 	}{
 		{"mixed", map[string]string{"flow.dfd": "[1. A]\n> x\n[B]\n"},
-			`flow.dfd: process "B" has no number; number every process or none`},
+			`flow.dfd:3: process "B" has no number; number every process or none`},
 		{"one number, two labels", map[string]string{"flow.dfd": "[1. A]\n> x\n[1. B]\n"},
-			`flow.dfd: number 1 already belongs to "A"`},
+			`flow.dfd:3: number 1 already belongs to "A"`},
 		{"dotted in the top diagram", map[string]string{"flow.dfd": "[1.1. A]\n"},
 			`flow.dfd: process 1.1 does not belong in the top diagram`},
 		{"outside its parent", map[string]string{"flow.dfd": "[1. A]\n> x\n[2. B]\n", "flow.2.dfd": "[3.1. C]\n"},

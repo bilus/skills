@@ -80,6 +80,16 @@ func TestLinkLeavesOtherLinesAlone(t *testing.T) {
 	}
 }
 
+// An external system beside a process is a name for terms, and its arrows are not flow labels.
+func TestLinkExternalSystems(t *testing.T) {
+	src := "[A]\n    > event\n    <Event bus>\n> x\n[B]\n"
+	got, _ := dfdtext.Link(src, dfdtext.Linker{Code: code, Types: map[string]string{"event": "E"}, Terms: map[string]string{"bus": "a queue"}})
+	want := "[A]\n    > event\n    <Event {bus:@v/bus}>\n> x\n[B]\n"
+	if got != want {
+		t.Errorf("linked:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 func TestReferences(t *testing.T) {
 	src := "{E (e.NotAReference)}\n> x\n[1. A (p.A, q.B)]\n> y\n[2. B\n (see (p.Inner))\n (r.C,\n  a.b.C)]\n"
 	want := []dfdtext.Reference{{"p", "A"}, {"q", "B"}, {"r", "C"}, {"a", "b"}}

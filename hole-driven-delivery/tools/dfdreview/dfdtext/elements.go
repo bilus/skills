@@ -80,6 +80,15 @@ func elements(lines []string) []element {
 				sp.end--
 			}
 			out = append(out, element{kind: store, spans: []span{afterAlias(raw, sp)}})
+		case external(text):
+			cont = false
+			for _, a := range pending {
+				a.kind = storeLabel
+				out = append(out, a)
+			}
+			pending = nil
+			sp := span{line: i, start: start + 1, end: end - 1}
+			out = append(out, element{kind: entity, spans: []span{afterAlias(raw, sp)}})
 		case text[0] == '>' || text[0] == '<':
 			cont = true
 			s, _ := trim(raw[start+1 : end])
@@ -92,6 +101,14 @@ func elements(lines []string) []element {
 		}
 	}
 	return out
+}
+
+// external reports whether a line names an external system beside a process,
+// as dfd reads it: no space after the "<", and an unescaped ">" at the end.
+func external(text string) bool {
+	n := len(text)
+	return n >= 3 && text[0] == '<' && text[1] != ' ' && text[1] != '\t' &&
+		text[n-1] == '>' && text[n-2] != '\\'
 }
 
 // definition matches a footnote definition line, "{id} target".

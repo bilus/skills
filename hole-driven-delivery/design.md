@@ -8,8 +8,9 @@ The design of a change is a set of dfd files: a top diagram, and a child diagram
 {Entity}           an external source or sink
 [Process]          a process box; document order is the flow; a box may span lines
 |Store|            a datastore, attached to the process above it
-> label            before a process: the flow arrow into it; before a store: a write
-< label            before a store: a read
+<External>         an external system beside the process above it, in a datastore's place
+> label            before a process: the flow arrow into it; before a store: a write; before an external system: data sent to it
+< label            before a store: a read; before an external system: a reply it sends back
 [A := Long name]   an alias; a bare [A] later means the same process
 # comment          ignored by dfd; the design uses it for arrow types
 ```
@@ -39,7 +40,9 @@ The action line and the doc comment of the box's first reference say the same th
 - Every item of a flow label gets one `# type: item = type` comment somewhere in the file, so the label `sum types, diagnostics` gets `# type: sum types = []*analyze.Sum` and `# type: diagnostics = []analyze.Diagnostic`. A label with one item gets one comment.
 - dfd draws a flow arrow between every two consecutive steps. When two steps communicate only through a store, label the arrow with the arguments of the second step.
 
-## Stores and state
+## Stores, external systems and I/O
+
+- Every piece of I/O is drawn. A read or a write of state that outlives one call, such as a file, a directory, a database or a cache, is a store arrow. A call to a system outside the program, such as sending an event or an HTTP request, is an arrow to or from an external system beside the process: `> order placed` and `< ack` before `<Event bus>`. dfdmetrics leaves external systems out of the state items.
 
 - A store stands for state that outlives one call: a struct filled in place, a map, a file, a directory.
 - A store arrow's label lists state items, separated by commas. The store and the label together identify an item, so a write and the read of one item use the same store and the same label.
@@ -79,6 +82,8 @@ The action line and the doc comment of the box's first reference say the same th
 
 ## Common mistakes
 
+- Leaving out a read of a store, such as a step that loads the files that an earlier step or run wrote to a directory.
+- Drawing an external system that a step calls as a step of the flow, `{Mail server}`, instead of beside the step, `<Mail server>`.
 - Drawing steps before their functions exist. A box without a declaration misleads the reviewer, and the review page reports it. Draw a finer step with the fill that creates its function.
 - Listing a struct's fields on an arrow when the next function takes the struct itself.
 - Drawing a change in place as an arrow out of the step, as if the step returned the changed value.

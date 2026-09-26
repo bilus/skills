@@ -134,6 +134,14 @@ func TestItemsReportTheItemFindings(t *testing.T) {
 	}
 }
 
+// An external system beside a process holds none of the design's state.
+func TestItemsIgnoreExternalSystems(t *testing.T) {
+	items, findings := itemsOf(t, map[string]string{"flow.dfd": "[A]\n    > event\n    < ack\n    <Bus>\n> a\n[B]\n"})
+	if len(items) != 0 || len(findings) != 0 {
+		t.Errorf("items = %+v, findings = %+v, want none", items, findings)
+	}
+}
+
 func TestItemsFlagAStoreArrowWithoutItems(t *testing.T) {
 	_, findings := itemsOf(t, map[string]string{"flow.dfd": "[A]\n    >\n    |S|\n"})
 	if !hasFinding(findings, dfdmetrics.UnlabeledArrow, "S", "", "1") {
