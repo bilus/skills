@@ -49,6 +49,7 @@ body.resizing { cursor: col-resize; user-select: none; }
   background: transparent; color: var(--muted); cursor: pointer; }
 .tabs button[aria-selected="true"] { background: var(--panel); color: var(--ink); border-color: var(--sel-rule); font-weight: 600; }
 .tabs.small button { font-size: 12px; padding: 2px 8px; }
+.tabs button .mark { color: var(--del); font-weight: 700; margin-left: 2px; }
 #drawing svg { display: block; max-width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 6px; }
 #drawing a[href] { cursor: pointer; }
 #drawing a[href]:hover tspan, #drawing a[href]:focus tspan { fill: #4a37b0; }
@@ -144,17 +145,30 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
       if (item.hint) {
         b.title = item.hint;
       }
+      if (item.mark) {
+        const star = document.createElement("span");
+        star.className = "mark";
+        star.textContent = "*";
+        star.title = item.mark;
+        b.appendChild(star);
+      }
       b.addEventListener("click", () => onSelect(item.id));
       container.appendChild(b);
     });
   }
 
   // The diagrams, each in its views.
+  let marked = null; // for each diagram, whether its drawings link a changed declaration
+
   function selectDiagram(i) {
     state.diagram = i;
-    // A tab shows the diagram's number, and its title, the description of the
-    // process it expands, shows on hover and above the drawing.
-    tabs($("tabs"), data.diagrams.map((d, k) => ({ id: k, label: d.number || "Overview", hint: d.number ? d.title : "" })), i, selectDiagram);
+    marked = marked || data.diagrams.map(hasChange);
+    // A tab shows the diagram's number. Its title, the description of the expanded
+    // process, shows on hover and above the drawing.
+    tabs($("tabs"), data.diagrams.map((d, k) => ({
+      id: k, label: d.number || "Overview", hint: d.number ? d.title : "",
+      mark: marked[k] ? "links a declaration changed since " + data.base : "",
+    })), i, selectDiagram);
     const d = data.diagrams[i];
     $("diagram-title").textContent = d.title;
     const present = ["before", "diff", "after"].filter((v) => d[v]);
@@ -200,7 +214,7 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
           markChanged(a);
         }
       } else if (href.startsWith("#type/")) {
-        const decl = data.decls[typeKey(typeOf(decodeURIComponent(href.slice(6)), version))];
+        const decl = data.decls[typeKey(typeOf(data.diagrams[state.diagram], decodeURIComponent(href.slice(6)), version))];
         if (decl && decl.changed) {
           markChanged(a);
         }
@@ -243,6 +257,16 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
     });
   }
 
+  // hasChange reports whether a diagram's drawings link a declaration that differs from the base.
+  function hasChange(d) {
+    return ["before", "diff", "after"].some((view) =>
+      [...(d[view] || "").matchAll(/href="#(code|type)\/([^"]*)"/g)].some((m) => {
+        const key = m[1] === "code" ? m[2] : typeKey(typeOf(d, decodeURIComponent(m[2]), versionOf(view)));
+        return Boolean((data.decls[key] || {}).changed);
+      }),
+    );
+  }
+
   // markChanged puts a red asterisk after a link whose declaration differs from the base.
   function markChanged(a) {
     const star = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
@@ -277,10 +301,9 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
     return true;
   }
 
-  // typeOf returns a flow item's type in the diagram, from the other version when this one lacks it.
-  function typeOf(item, version) {
-    const types = data.diagrams[state.diagram].types;
-    return (types[version] || {})[item] || (types[other(version)] || {})[item] || "";
+  // typeOf returns a flow item's type in diagram d, from the other version when this one lacks it.
+  function typeOf(d, item, version) {
+    return (d.types[version] || {})[item] || (d.types[other(version)] || {})[item] || "";
   }
 
   // typeKey returns the declaration key of a type's first qualified name, such as lib.Item in []*lib.Item.
@@ -290,7 +313,7 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
   }
 
   function showType(item, version) {
-    const type = typeOf(item, version);
+    const type = typeOf(data.diagrams[state.diagram], item, version);
     if (!type) {
       status(esc(item) + " has no type comment.");
       return;
