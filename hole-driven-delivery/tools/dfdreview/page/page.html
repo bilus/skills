@@ -33,12 +33,16 @@ body { background: var(--paper); color: var(--ink); font: 14px/1.5 system-ui, -a
 header { padding: 10px 16px; border-bottom: 1px solid var(--rule); background: var(--panel); }
 header h1 { font-size: 16px; margin: 0; }
 header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); height: calc(100% - 58px); }
+main { display: grid; grid-template-columns: minmax(0, 1fr) 7px var(--code-width, 40%); height: calc(100% - 58px); }
 #left { overflow: auto; padding: 12px 16px 32px; }
-#code { position: relative; overflow: auto; border-left: 1px solid var(--rule); background: var(--panel); }
+#splitter { cursor: col-resize; background: var(--rule); border-left: 3px solid var(--paper); border-right: 3px solid var(--panel); }
+#splitter:hover, #splitter.dragging, #splitter:focus-visible { background: var(--sel-rule); outline: none; }
+body.resizing { cursor: col-resize; user-select: none; }
+#code { position: relative; overflow: auto; background: var(--panel); }
 @media (max-width: 1000px) {
   main { grid-template-columns: minmax(0, 1fr); height: auto; }
-  #code { border-left: 0; border-top: 1px solid var(--rule); max-height: 80vh; }
+  #splitter { display: none; }
+  #code { border-top: 1px solid var(--rule); max-height: 80vh; }
 }
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .tabs button { font: inherit; font-size: 13px; padding: 4px 10px; border: 1px solid var(--rule); border-radius: 6px;
@@ -99,6 +103,7 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
     <div id="drawing"></div>
     <div id="notes"></div>
   </section>
+  <div id="splitter" role="separator" aria-orientation="vertical" aria-label="Resize the code panel" tabindex="0" title="Drag to resize; double-click to reset"></div>
   <aside id="code" aria-label="Code">
     <div id="code-head">
       <div id="code-status">No file open.</div>
@@ -421,6 +426,69 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
   if (data.diagrams.length) {
     selectDiagram(0);
   }
+
+  // The splitter resizes the code panel, and this browser keeps the width.
+  const main = document.querySelector("main");
+  const splitter = $("splitter");
+  const widthKey = "dfdreview.codeWidth";
+  function setCodeWidth(px) {
+    const width = Math.max(240, Math.min(px, main.clientWidth - 320));
+    main.style.setProperty("--code-width", width + "px");
+    return width;
+  }
+  function saveCodeWidth(width) {
+    try {
+      localStorage.setItem(widthKey, String(width));
+    } catch (e) {
+      // Without storage, the width lasts until the page reloads.
+    }
+  }
+  try {
+    const saved = Number(localStorage.getItem(widthKey));
+    if (saved > 0) {
+      setCodeWidth(saved);
+    }
+  } catch (e) {
+    // Without storage, the panel keeps its default width.
+  }
+  splitter.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    splitter.setPointerCapture(e.pointerId);
+    splitter.classList.add("dragging");
+    document.body.classList.add("resizing");
+  });
+  splitter.addEventListener("pointermove", (e) => {
+    if (splitter.hasPointerCapture(e.pointerId)) {
+      setCodeWidth(main.getBoundingClientRect().right - e.clientX);
+    }
+  });
+  splitter.addEventListener("pointerup", (e) => {
+    splitter.releasePointerCapture(e.pointerId);
+    splitter.classList.remove("dragging");
+    document.body.classList.remove("resizing");
+    saveCodeWidth($("code").offsetWidth);
+  });
+  splitter.addEventListener("keydown", (e) => {
+    const step = e.shiftKey ? 80 : 20;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+      const wider = e.key === "ArrowLeft" ? step : -step;
+      saveCodeWidth(setCodeWidth($("code").offsetWidth + wider));
+    }
+  });
+  splitter.addEventListener("dblclick", () => {
+    main.style.removeProperty("--code-width");
+    try {
+      localStorage.removeItem(widthKey);
+    } catch (e) {
+      // Without storage, there is no saved width to forget.
+    }
+  });
+  window.addEventListener("resize", () => {
+    if (main.style.getPropertyValue("--code-width")) {
+      setCodeWidth($("code").offsetWidth);
+    }
+  });
 })();
 </script>
 </body>

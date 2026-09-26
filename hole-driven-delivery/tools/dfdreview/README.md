@@ -27,6 +27,7 @@ dfdreview -base <commit> -plan docs/plans/<plan>.md \
 | `-report FILE` | This review's report, from `dfdmetrics`. |
 | `-vocabulary FILE` | The vocabulary, by default `vocabulary.md` beside the design. |
 | `-dfd PATH` | The dfd command, by default `dfd`. |
+| `-per-row N` | The boxes per row of each drawing, 5 by default. |
 | `-o FILE` | The page, by default `review/index.html` beside the design. |
 
 The command exits with status 0 after writing the page, 2 after a usage error, and 1 after any other error. An error names its input: the file, the revision, or the diagram and view that dfd rejected, as in `docs/flow.3.dfd (diff):7: ...`.
@@ -44,6 +45,6 @@ dfdreview runs git, dfd and `go list std`. The dfd must have `--patch` and `--fo
 
 ## How it works
 
-dfdreview reads each diagram at the base and in the working tree and aligns the two versions line by line. It then wraps the references, the typed items and the terms of both versions in dfd footnote references, and writes each changed diagram's patch from its alignment with the linked lines. So a link that exists in one version alone does not show as a change. dfd draws every view with one shared file of footnote definitions. The page holds the drawings, the files, the declarations, the types, the terms and the notes as JSON, and its script adds the tabs and the code panel.
+dfdreview reads each diagram at the base and in the working tree and aligns the two versions line by line. It then wraps the references, the typed items and the terms of both versions in dfd footnote references, and writes each changed diagram's patch from its alignment with the linked lines. So a link that exists in one version alone does not show as a change. dfd draws every view with one shared file of footnote definitions. The page holds the drawings, the files, the declarations, the types, the terms and the notes as JSON, and its script adds the tabs and the code panel. Dragging the divider beside the code panel, or pressing the arrow keys on it, resizes the panel, and the browser keeps the width.
 
 `docs/flow.dfd` and `docs/flow.4.dfd` hold dfdreview's own design, `docs/vocabulary.md` its terms, and `docs/plans` the plan and the ledger of its construction. `docs/review/index.html` is the review page of that design.

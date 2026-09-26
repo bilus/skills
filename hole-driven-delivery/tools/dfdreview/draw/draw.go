@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/code"
@@ -23,9 +24,14 @@ type View struct {
 	Before, Diff, After string
 }
 
+// Command is how dfd runs: the command and the boxes per row of each drawing.
+type Command struct {
+	Name   string // the dfd command
+	PerRow int    // boxes per row, 5 when 0
+}
+
 // Views draws each diagram of d in its views, with links to code, types and terms.
-// dfd is the command that draws.
-func Views(d *design.Design, c *code.Index, dfd string) ([]View, error) {
+func Views(d *design.Design, c *code.Index, dfd Command) ([]View, error) {
 	alignments := align(d)
 	sheets, footnotes := link(d, c, alignments)
 	return render(dfd, sheets, footnotes)
@@ -97,7 +103,7 @@ func link(d *design.Design, c *code.Index, alignments map[string][]dfdtext.Op) (
 }
 
 // render runs dfd for each view of each sheet, with the footnote definitions in one file.
-func render(dfd string, sheets []sheet, footnotes map[string]string) ([]View, error) {
+func render(dfd Command, sheets []sheet, footnotes map[string]string) ([]View, error) {
 	dir, err := os.MkdirTemp("", "dfdreview")
 	if err != nil {
 		return nil, err
@@ -117,7 +123,11 @@ func render(dfd string, sheets []sheet, footnotes map[string]string) ([]View, er
 		return nil, err
 	}
 	run := func(s sheet, view, input string, patch bool) (string, error) {
-		args := []string{"--box", "300x150", "--per-row", "5", "--number", "--footnotes", defs, "-o", "-"}
+		perRow := dfd.PerRow
+		if perRow <= 0 {
+			perRow = 5
+		}
+		args := []string{"--box", "300x150", "--per-row", strconv.Itoa(perRow), "--number", "--footnotes", defs, "-o", "-"}
 		if s.number != "" {
 			// dfd's own numbering needs the prefix; explicit numbers ignore it.
 			args = append(args, "--number-prefix", s.number+".")
@@ -125,7 +135,7 @@ func render(dfd string, sheets []sheet, footnotes map[string]string) ([]View, er
 		if patch {
 			args = append(args, "--patch")
 		}
-		cmd := exec.Command(dfd, args...)
+		cmd := exec.Command(dfd.Name, args...)
 		cmd.Stdin = strings.NewReader(input)
 		var out, stderr bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &out, &stderr
@@ -134,7 +144,7 @@ func render(dfd string, sheets []sheet, footnotes map[string]string) ([]View, er
 			if msg := strings.TrimSpace(stderr.String()); msg != "" {
 				return "", errors.New(strings.ReplaceAll(msg, "<stdin>", name))
 			}
-			return "", fmt.Errorf("%s: %s: %w", name, dfd, err)
+			return "", fmt.Errorf("%s: %s: %w", name, dfd.Name, err)
 		}
 		return out.String(), nil
 	}

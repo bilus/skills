@@ -20,5 +20,5 @@
 # type: alignments = map[string][]dfdtext.Op
 # type: sheets = []draw.sheet
 # type: footnote definitions = map[string]string
-# type: dfd command = string
+# type: dfd command = draw.Command
 # type: views = []draw.View

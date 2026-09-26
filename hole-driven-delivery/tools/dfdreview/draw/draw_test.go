@@ -82,7 +82,7 @@ func change(t *testing.T, withBase bool) (*design.Design, *code.Index) {
 
 func TestViews(t *testing.T) {
 	d, c := change(t, true)
-	views, err := draw.Views(d, c, script(t, echo))
+	views, err := draw.Views(d, c, draw.Command{Name: script(t, echo)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestViews(t *testing.T) {
 // dfd numbers an unnumbered child diagram only with the prefix of its process.
 func TestViewsPrefixChildNumbers(t *testing.T) {
 	d, c := change(t, true)
-	views, err := draw.Views(d, c, script(t, echo))
+	views, err := draw.Views(d, c, draw.Command{Name: script(t, echo)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,9 +137,22 @@ func TestViewsPrefixChildNumbers(t *testing.T) {
 	}
 }
 
+func TestViewsBoxesPerRow(t *testing.T) {
+	d, c := change(t, true)
+	for perRow, want := range map[int]string{0: "--per-row 5", 3: "--per-row 3"} {
+		views, err := draw.Views(d, c, draw.Command{Name: script(t, echo), PerRow: perRow})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(views[0].After, want) {
+			t.Errorf("PerRow %d: dfd ran without %q:\n%s", perRow, want, views[0].After)
+		}
+	}
+}
+
 func TestViewsWithoutBase(t *testing.T) {
 	d, c := change(t, false)
-	views, err := draw.Views(d, c, script(t, echo))
+	views, err := draw.Views(d, c, draw.Command{Name: script(t, echo)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +165,7 @@ func TestViewsWithoutBase(t *testing.T) {
 
 func TestViewsNamesTheFailingView(t *testing.T) {
 	d, c := change(t, true)
-	_, err := draw.Views(d, c, script(t, failing))
+	_, err := draw.Views(d, c, draw.Command{Name: script(t, failing)})
 	if err == nil || !strings.Contains(err.Error(), "flow.dfd (diff):3: bad patch line") {
 		t.Errorf("error = %v, want one naming the diagram and its view", err)
 	}
@@ -169,7 +182,7 @@ func TestViewsWithDfd(t *testing.T) {
 		t.Skip("no dfd with --patch; set DFD to one")
 	}
 	d, c := change(t, true)
-	views, err := draw.Views(d, c, dfd)
+	views, err := draw.Views(d, c, draw.Command{Name: dfd})
 	if err != nil {
 		t.Fatal(err)
 	}

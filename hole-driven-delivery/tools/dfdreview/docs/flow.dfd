@@ -29,5 +29,5 @@
 # type: repository = *repo.Repo
 # type: design = *design.Design
 # type: code index = *code.Index
-# type: dfd command = string
+# type: dfd command = draw.Command
 # type: views = []draw.View
