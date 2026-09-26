@@ -1,6 +1,6 @@
 # Designing with leveled data flow diagrams
 
-The design of a change is a set of dfd files: a top diagram and a child diagram for each process with internal steps. Draw it before the code, and keep it true to the code at every stage boundary. dfdmetrics reads the same files, so the conventions below are also its input format, and `tools/dfdmetrics/README.md` defines its terms.
+The design of a change is a set of dfd files: a top diagram, and a child diagram for each process whose function calls steps of its own. The top diagram comes before the code. A child diagram comes with the stage whose fill splits its process's function into steps, so every box stands for an existing function or for a hole declared in its stage. Keep every diagram true to the code at every stage boundary. dfdmetrics reads the same files, so the conventions below are also its input format, and `tools/dfdmetrics/README.md` defines its terms.
 
 ## The dfd format
 
@@ -28,13 +28,14 @@ A box holds its number, an action line, a purpose line and the references:
 
 1. The number and the action line, in the imperative: the step's action ("3. Validate the sum types").
 2. The purpose line: why the later steps need this step ("to give patterns their variants"). Keep it short, and leave it out when the outgoing arrow's label already gives it.
-3. The references, in the last top-level pair of parentheses: the functions and types behind the step, as in `(analyze.sumTypes, analyze.checkCollisions)`. Write the design's own packages by name and other packages by import path (`go/format.Source`). A single-element standard library package such as `fmt` does not need a path. A design package named like one of them, such as `errors` or `log`, counts as external, so avoid such names.
+3. The references, in the last top-level pair of parentheses: typically the process's own function, as in `(analyze.sumTypes)`. A box may name several functions of one package, as in `(analyze.sumTypes, analyze.checkCollisions)`. Write the design's own packages by name and other packages by import path (`go/format.Source`). A single-element standard library package such as `fmt` does not need a path. A design package named like one of them, such as `errors` or `log`, counts as external, so avoid such names.
 
 The action line and the doc comment of the box's first reference say the same thing. "Analyze reads the source code and builds a list of declarations" becomes "Read the source code and build a list of declarations". Write one from the other, by hand or with a small model, and keep them in step.
 
 ## Arrows
 
-- An arrow's label names the input data of the next process. When a step changes something in place and returns nothing, an arrow does not carry the change: draw a store write instead.
+- An arrow's label names the input data of the next process, as its function's parameters declare it: one item per parameter, with its declared type. A struct passed whole is one item, not a list of its fields.
+- When a step changes something in place and returns nothing, an arrow does not carry the change: draw a store write instead.
 - Every item of a flow label gets one `# type: item = type` comment somewhere in the file, so the label `sum types, diagnostics` gets `# type: sum types = []*analyze.Sum` and `# type: diagnostics = []analyze.Diagnostic`. A label with one item gets one comment.
 - dfd draws a flow arrow between every two consecutive steps. When two steps communicate only through a store, label the arrow with the arguments of the second step.
 
@@ -52,6 +53,7 @@ The action line and the doc comment of the box's first reference say the same th
 - A child diagram may show the neighbours of its parent process as entities, so its inputs and outputs are visible.
 - A few neighbouring steps may share state, as long as the last of them returns a finished value. Group them into one process. One level up, the group is a process with plain inputs and outputs, and its child diagram holds the store. Apply this rule at every level.
 - A parent diagram draws a store arrow on a decomposed box only for a state item with accessing boxes both inside and outside that box. Such an arrow is a summary, and dfdmetrics checks each one against the leaf boxes anywhere below the decomposed box.
+- Levels grow with the fills. The plan draws the top diagram, and the skeleton declares each top-level process's function with a hole for its body. When a fill replaces a hole with calls to new functions, the same stage draws that process's child diagram, with one box per new function.
 - The code follows the levels. Each decomposed process is one function or method, and its body calls the functions of its child processes in order.
 
 ## Packages
@@ -77,6 +79,8 @@ The action line and the doc comment of the box's first reference say the same th
 
 ## Common mistakes
 
+- Drawing steps before their functions exist. A box without a declaration misleads the reviewer, and the review page reports it. Draw a finer step with the fill that creates its function.
+- Listing a struct's fields on an arrow when the next function takes the struct itself.
 - Drawing a change in place as an arrow out of the step, as if the step returned the changed value.
 - Drawing every store of the design on the top diagram. Only state shared across top-level boxes belongs there.
 - Writing an item under one label and reading it under another, such as "sites" and "matches".
