@@ -321,10 +321,23 @@ func TestShopSearchInChrome(t *testing.T) {
 			script: `click("#refs-link"); click("#refs a[data-key='receipt.Print']");`,
 			want: map[string]string{
 				"the status of the calling function": `receipt\.Print in receipt/receipt\.go:10 \(After\)`,
-				"the selected line":                  `<div class="line sel" id="L10">`,
+				"its doc comment, selected":          `<div class="line sel" id="L9">`,
+				"the line of the call, in focus":     `<div class="line sel focus" id="L10">`,
 				"the closed list":                    `<div id="refs" hidden="">`,
 				"the link, ready again":              `aria-expanded="false" aria-controls="refs">Show references</button>`,
 				"the place in the history":           `data-hash="#f=receipt/receipt\.go&amp;fv=after&amp;k=receipt\.Print&amp;l=10"`,
+			},
+		},
+		{
+			name:   "following an identifier to a declaration",
+			hash:   "#f=receipt/receipt.go&fv=after",
+			script: `click("#code-body a[data-key='cart.Total']");`,
+			want: map[string]string{
+				"the status at the definition's line": `cart\.Total in cart/cart\.go:13 \(After\)`,
+				"its doc comment, selected":           `<div class="line sel" id="L12">`,
+				"the definition's line, in focus":     `<div class="line sel focus" id="L13">`,
+				"its last line, selected":             `<div class="line sel" id="L19">`,
+				"the place in the history":            `data-hash="#f=cart/cart\.go&amp;fv=after&amp;k=cart\.Total&amp;l=13"`,
 			},
 		},
 		{

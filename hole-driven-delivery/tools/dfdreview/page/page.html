@@ -7,7 +7,7 @@
 <style>
 :root {
   --paper: #f5f6f8; --ink: #1b1f26; --muted: #5d6470; --panel: #ffffff; --rule: #d9dce3;
-  --accent: #4a37b0; --sel: #ece8fb; --sel-rule: #b9acf0;
+  --accent: #4a37b0; --sel: #ece8fb; --sel-rule: #b9acf0; --focus: #d9d0fa;
   --add: #1e7e34; --add-bg: #e6f4ea; --del: #b3261e; --del-bg: #fdecea; --amber: #b36b00; --amber-bg: #fcefd6;
   --code-kw: #8a3d9c; --code-str: #1d6b3a; --code-cmt: #6f7682; --code-type: #1c5fa8; --code-num: #a35a12;
 }
@@ -15,7 +15,7 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --paper: #14161a; --ink: #e6e8ec; --muted: #9aa1ad; --panel: #1b1e24; --rule: #2c3038;
-    --accent: #b3a6f5; --sel: #2a2544; --sel-rule: #5b4fa0;
+    --accent: #b3a6f5; --sel: #2a2544; --sel-rule: #5b4fa0; --focus: #3d3470;
     --add: #6fcf8a; --add-bg: #17301f; --del: #f28b82; --del-bg: #3a1c1a; --amber: #e6a86b; --amber-bg: #3a2d16;
     --code-kw: #d197e0; --code-str: #8fd2a6; --code-cmt: #7d8592; --code-type: #8ec1f2; --code-num: #e6a86b;
   }
@@ -23,7 +23,7 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --paper: #14161a; --ink: #e6e8ec; --muted: #9aa1ad; --panel: #1b1e24; --rule: #2c3038;
-  --accent: #b3a6f5; --sel: #2a2544; --sel-rule: #5b4fa0;
+  --accent: #b3a6f5; --sel: #2a2544; --sel-rule: #5b4fa0; --focus: #3d3470;
   --add: #6fcf8a; --add-bg: #17301f; --del: #f28b82; --del-bg: #3a1c1a; --amber: #e6a86b; --amber-bg: #3a2d16;
   --code-kw: #d197e0; --code-str: #8fd2a6; --code-cmt: #7d8592; --code-type: #8ec1f2; --code-num: #e6a86b;
 }
@@ -117,6 +117,8 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
 .line .n { flex: 0 0 3.6em; text-align: right; padding-right: 1em; color: var(--muted); user-select: none; }
 .line .s { padding-right: 16px; }
 .line.sel { background: var(--sel); box-shadow: inset 3px 0 0 var(--sel-rule); }
+/* Inside a selected declaration, the line that a link opened: a definition or a reference. */
+.line.sel.focus { background: var(--focus); }
 .line.add { background: var(--add-bg); }
 .line.del { background: var(--del-bg); }
 .line.hunk { color: var(--muted); }
@@ -600,15 +602,27 @@ ul.errors li { white-space: pre-wrap; }
       renderFile();
       record(false);
     });
-    // The selection: the lines that a link opened, else the declaration of the key in this file.
+    // The selection: a declaration's lines, from the link of its name or from its key, and
+    // inside them the line that a link opened, such as a definition or a reference, as the
+    // focus. Without a declaration that holds it, that line stands alone.
     let where = null;
+    let focus = null;
     if (state.fileView !== "diff") {
       const decl = state.key ? placeOf(state.key, state.fileView) : null;
-      where = state.line ? { start: state.line, end: state.end || state.line } : decl && decl.file === state.file ? decl : null;
+      const holds = decl && decl.file === state.file && (!state.line || (state.line >= decl.start && state.line <= decl.end));
+      if (state.end) {
+        where = { start: state.line, end: state.end };
+      } else if (holds) {
+        where = decl;
+        focus = state.line;
+      } else if (state.line) {
+        where = { start: state.line, end: state.line };
+      }
     }
+    const at = focus || (where && where.start);
     let label = esc(state.file) + (state.line ? ":" + state.line : "") + " (" + viewNames[state.fileView] + ")";
     if (state.key) {
-      label = esc(state.key) + (where ? " in " + esc(state.file) + ":" + where.start : " in " + esc(state.file)) + " (" + viewNames[state.fileView] + ")";
+      label = esc(state.key) + " in " + esc(state.file) + (at ? ":" + at : "") + " (" + viewNames[state.fileView] + ")";
     }
     status(label);
     refsLink.hidden = !state.key;
@@ -634,13 +648,19 @@ ul.errors li { white-space: pre-wrap; }
       });
       f[state.fileView].replace(/\n$/, "").split("\n").forEach((ln, i) => {
         const n = i + 1;
-        const sel = (where && n >= where.start && n <= where.end ? " sel" : "") + (changed[n] ? " " + changed[n] : "");
+        const sel = (where && n >= where.start && n <= where.end ? " sel" : "") + (n === focus ? " focus" : "") +
+          (changed[n] ? " " + changed[n] : "");
         const src = linkLine(go ? hljs.highlight(ln, { language: "go", ignoreIllegals: true }).value : esc(ln), n, state.fileView);
         out.push('<div class="line' + sel + '" id="L' + n + '"><span class="n">' + n + '</span><span class="s">' + src + "</span></div>");
       });
     }
     $("code-body").innerHTML = out.join("");
-    const target = where && document.getElementById("L" + where.start);
+    // The panel scrolls to the selection's first line, or to the focus when that line would
+    // leave the focus out of view.
+    const first = where && document.getElementById("L" + where.start);
+    const marked = focus && document.getElementById("L" + focus);
+    const room = $("code").clientHeight - $("code-head").offsetHeight - 36;
+    const target = first && marked && marked.offsetTop - first.offsetTop > room ? marked : first;
     $("code").scrollTop = target ? target.offsetTop - $("code-head").offsetHeight - 12 : 0;
   }
 
