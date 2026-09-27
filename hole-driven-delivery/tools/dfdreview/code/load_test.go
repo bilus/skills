@@ -162,7 +162,6 @@ func TestLoadReportsPackageErrors(t *testing.T) {
 }
 
 func TestLoadLinksIdentifiers(t *testing.T) {
-	t.Skip("HOLE(2): record the identifier links of every Go file in both versions")
 	g := gittest.New(t)
 	g.Write(map[string]string{
 		"go.mod":        goMod,

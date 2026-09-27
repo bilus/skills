@@ -61,17 +61,6 @@ func Load(r *repo.Repo) (*Resolved, error) {
 		res.After, errs = load(r.Dir(), "working tree")
 		res.Errors = append(res.Errors, errs...)
 	}
-	// HOLE(2): record the identifier links of every Go file in both versions
-	if res.After != nil {
-		res.After.Links = map[string][]Link{"lib/lib.go": {
-			{Line: 6, Col: 22, Len: 4, File: "lib/lib.go", To: 9},
-			{Line: 6, Col: 36, Len: 4, File: "lib/lib.go", To: 9},
-			{Line: 6, Col: 41, Len: 4, File: "lib/lib.go", To: 9},
-			{Line: 6, Col: 47, Len: 7, URL: "https://pkg.go.dev/strings"},
-			{Line: 6, Col: 55, Len: 9, URL: "https://pkg.go.dev/strings#TrimSpace"},
-			{Line: 6, Col: 65, Len: 1, File: "lib/lib.go", To: 6},
-		}}
-	}
 	return res, nil
 }
 
@@ -100,7 +89,8 @@ func loadBase(r *repo.Repo, mod string) (res *Resolution, errs []string, err err
 }
 
 // load type-checks the packages of dir and below, test files included, and records their
-// calls and the text of each of their Go files. Each error it returns names the version.
+// calls, and the text and the identifier links of each of their Go files. Each error it
+// returns names the version.
 // A load that fails as a whole gives no resolution.
 func load(dir, version string) (*Resolution, []string) {
 	root, err := filepath.EvalSymlinks(dir)
@@ -164,6 +154,7 @@ func load(dir, version string) (*Resolution, []string) {
 			calls(p, res.Calls)
 		}
 	}
+	res.Links = links(root, pkgs, res.Files)
 	return res, errs
 }
 
@@ -236,16 +227,10 @@ func implementations(fn *types.Func, methods []*types.Func) []*types.Func {
 // funcKey returns the key of a function or a method, such as analyze.sumTypes or
 // render.renderer.text.
 func funcKey(fn *types.Func) string {
-	recv := fn.Signature().Recv()
-	if recv == nil {
-		return fn.Pkg().Name() + "." + fn.Name()
-	}
-	t := recv.Type()
-	if ptr, ok := t.(*types.Pointer); ok {
-		t = ptr.Elem()
-	}
-	if named, ok := types.Unalias(t).(*types.Named); ok {
-		return fn.Pkg().Name() + "." + named.Obj().Name() + "." + fn.Name()
+	if recv := fn.Signature().Recv(); recv != nil {
+		if name := typeName(recv.Type()); name != "" {
+			return fn.Pkg().Name() + "." + name + "." + fn.Name()
+		}
 	}
 	return fn.Pkg().Name() + "." + fn.Name()
 }
