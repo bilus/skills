@@ -1,6 +1,7 @@
 package repo_test
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -140,5 +141,65 @@ func TestChanged(t *testing.T) {
 	none, err := open(t, filepath.Join(g.Dir, "tool"), "").Changed()
 	if err != nil || len(none) != 0 {
 		t.Errorf("without a base: %v, %v; want no changes", none, err)
+	}
+}
+
+func TestModuleDirs(t *testing.T) {
+	g := gittest.New(t)
+	g.Write(map[string]string{"code/docs/flow.dfd": "[1. Run]\n", "code/a.go": "package a\n", "code/go.mod": "module example.com/a\n"})
+	base := g.Commit("base")
+	// The working tree moves the module up to the repository's top level.
+	g.Remove("code/go.mod")
+	g.Write(map[string]string{"go.mod": "module example.com/m\n"})
+	before, after, err := open(t, filepath.Join(g.Dir, "code"), base).ModuleDirs()
+	if err != nil || before != "." || after != ".." {
+		t.Errorf("module directories: before %q, after %q (%v)", before, after, err)
+	}
+	g.Remove("go.mod")
+	before, after, err = open(t, filepath.Join(g.Dir, "code"), "").ModuleDirs()
+	if err != nil || before != "" || after != "" {
+		t.Errorf("without a module or a base: before %q, after %q (%v)", before, after, err)
+	}
+}
+
+func TestExport(t *testing.T) {
+	g := gittest.New(t)
+	g.Write(map[string]string{
+		".gitattributes": "*.go export-subst\ncode/skip.go export-ignore\n",
+		"code/a.go":      "package a\n\n// $Format:%H$\n",
+		"code/sub/b.go":  "package sub\n",
+		"code/skip.go":   "package a\n",
+		"other/c.go":     "package c\n",
+	})
+	base := g.Commit("base")
+	g.Write(map[string]string{"code/a.go": "package a\n"})
+	r := open(t, filepath.Join(g.Dir, "code"), base)
+	dst := t.TempDir()
+	if err := r.Export(".", dst); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{
+		"a.go":     "package a\n\n// $Format:%H$\n", // the blob, without export-subst
+		"sub/b.go": "package sub\n",
+		"skip.go":  "package a\n", // export-ignore does not apply either
+	} {
+		if got, err := os.ReadFile(filepath.Join(dst, name)); err != nil || string(got) != want {
+			t.Errorf("%s: %q, want %q (%v)", name, got, want, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dst, "c.go")); !os.IsNotExist(err) {
+		t.Errorf("the export of the code directory holds other/c.go (%v)", err)
+	}
+	above := t.TempDir()
+	if err := r.Export("..", above); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"code/a.go", "other/c.go", ".gitattributes"} {
+		if _, err := os.Stat(filepath.Join(above, name)); err != nil {
+			t.Errorf("the export of the top level lacks %s: %v", name, err)
+		}
+	}
+	if err := r.Export("../..", t.TempDir()); err == nil {
+		t.Errorf("an export above the repository succeeded")
 	}
 }

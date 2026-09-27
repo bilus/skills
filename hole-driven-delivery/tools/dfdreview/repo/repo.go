@@ -70,6 +70,67 @@ func Open(dir, base string) (*Repo, error) {
 // Base returns the base revision, "" when the page shows the working tree alone.
 func (r *Repo) Base() string { return r.base }
 
+// Dir returns the code directory as an absolute path.
+func (r *Repo) Dir() string { return filepath.Join(r.top, filepath.FromSlash(r.dir)) }
+
+// ModuleDirs returns the directory of the nearest go.mod at or above the code directory in
+// each version, relative to the code directory, such as "." or "..", or "" for a version
+// without one. The search stops at the repository's top level.
+func (r *Repo) ModuleDirs() (before, after string, err error) {
+	dir, rel := r.Dir(), "."
+	for {
+		pair, err := r.Read(filepath.Join(dir, "go.mod"))
+		if err != nil {
+			return "", "", err
+		}
+		if before == "" && pair.Before.Found {
+			before = rel
+		}
+		if after == "" && pair.After.Found {
+			after = rel
+		}
+		if (before != "" || r.base == "") && after != "" || dir == r.top {
+			return before, after, nil
+		}
+		dir, rel = filepath.Dir(dir), filepath.Join(rel, "..")
+	}
+}
+
+// Export writes the files under dir, relative to the code directory, into dst as they are at
+// the base, with their paths relative to dir. It writes the blobs as git stores them, so the
+// conversions of .gitattributes, such as export-subst, do not apply.
+func (r *Repo) Export(dir, dst string) error {
+	if r.base == "" {
+		return errors.New("export: no base revision")
+	}
+	src := path.Clean(path.Join(r.dir, filepath.ToSlash(dir)))
+	if src == ".." || strings.HasPrefix(src, "../") {
+		return fmt.Errorf("export %s: outside the repository %s", dir, r.top)
+	}
+	paths, err := r.list("-r", "--", treeArg(src))
+	if err != nil {
+		return err
+	}
+	contents, err := r.cat(paths)
+	if err != nil {
+		return err
+	}
+	prefix := treeArg(src)
+	if src == "." {
+		prefix = ""
+	}
+	for p, content := range contents {
+		file := filepath.Join(dst, filepath.FromSlash(strings.TrimPrefix(p, prefix)))
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Read returns the file at path in both versions.
 // Without a base, Before is not found.
 func (r *Repo) Read(p string) (Pair, error) {

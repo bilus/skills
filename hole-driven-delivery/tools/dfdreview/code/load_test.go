@@ -85,7 +85,6 @@ func index(t *testing.T, r *repo.Repo, dir string) *code.Index {
 }
 
 func TestLoadResolvesCalls(t *testing.T) {
-	t.Skip("HOLE(1): type-check both versions of the module and resolve the calls of every function and method")
 	tmp := t.TempDir()
 	r, dir := module(t)
 	t.Setenv("TMPDIR", tmp)
@@ -121,7 +120,6 @@ func TestLoadResolvesCalls(t *testing.T) {
 }
 
 func TestLoadWithoutModule(t *testing.T) {
-	t.Skip("HOLE(1): a code directory without a module gets no resolutions")
 	g := gittest.New(t)
 	g.Write(map[string]string{"docs/flow.dfd": "[1. Run]\n", "lib/lib.go": "package lib\n"})
 	base := g.Commit("base")
@@ -139,7 +137,6 @@ func TestLoadWithoutModule(t *testing.T) {
 }
 
 func TestLoadReportsPackageErrors(t *testing.T) {
-	t.Skip("HOLE(1): a package error leaves the load to finish, with the error recorded for each version")
 	g := gittest.New(t)
 	g.Write(map[string]string{
 		"go.mod":        goMod,
@@ -273,5 +270,28 @@ func TestReadHoldsEveryGoFile(t *testing.T) {
 		if f, ok := c.Files[path]; !ok || !f.Before.Found || !f.After.Found {
 			t.Errorf("%s: %+v", path, f)
 		}
+	}
+}
+
+func TestLoadLeavesGoModAlone(t *testing.T) {
+	// Under -mod=mod, the go command adds a go directive to a go.mod without one.
+	const mod = "module example.com/m\n"
+	g := gittest.New(t)
+	g.Write(map[string]string{"go.mod": mod, "docs/flow.dfd": "[1. Run]\n", "p/p.go": "package p\n\n// F does nothing.\nfunc F() {}\n"})
+	base := g.Commit("base")
+	r, err := repo.Open(g.Dir, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GOFLAGS", "-mod=mod")
+	res, err := code.Load(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(filepath.Join(g.Dir, "go.mod")); err != nil || string(got) != mod {
+		t.Errorf("the load changed go.mod to %q (%v)", got, err)
+	}
+	if res.Before == nil || res.After == nil || len(res.Errors) > 0 {
+		t.Errorf("resolutions: before %v, after %v, errors %v", res.Before != nil, res.After != nil, res.Errors)
 	}
 }
