@@ -150,12 +150,14 @@ func TestBuildLinksIdentifiers(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []page.Link{
+		{Line: 6, Col: 6, Len: 5, File: "lib/lib.go", To: 5, End: 6, Key: "lib.Parse"}, // a declaration's name links to its lines
 		{Line: 6, Col: 22, Len: 4, File: "lib/lib.go", To: 9, Key: "lib.Item"},
 		{Line: 6, Col: 36, Len: 4, File: "lib/lib.go", To: 9, Key: "lib.Item"},
 		{Line: 6, Col: 41, Len: 4, File: "lib/lib.go", To: 9}, // a field has no key
 		{Line: 6, Col: 47, Len: 7, URL: "https://pkg.go.dev/strings"},
 		{Line: 6, Col: 55, Len: 9, URL: "https://pkg.go.dev/strings#TrimSpace"},
 		{Line: 6, Col: 65, Len: 1, File: "lib/lib.go", To: 6},
+		{Line: 9, Col: 6, Len: 4, File: "lib/lib.go", To: 8, End: 9, Key: "lib.Item"},
 	}
 	if got := readPage(t, opts.Out).Files["lib/lib.go"].AfterLinks; !reflect.DeepEqual(got, want) {
 		t.Errorf("the links of lib/lib.go:\n got %+v\nwant %+v", got, want)

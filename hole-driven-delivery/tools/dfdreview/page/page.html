@@ -188,7 +188,8 @@ ul.errors li { white-space: pre-wrap; }
   const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const other = (version) => (version === "before" ? "after" : "before");
   const viewNames = { before: "Before", diff: "Diff", after: "After" };
-  const state = { diagram: 0, view: {}, file: null, key: null, line: null, fileView: "after" };
+  // line and end select lines of the open file: a definition's line, or a declaration's lines.
+  const state = { diagram: 0, view: {}, file: null, key: null, line: null, end: null, fileView: "after" };
   const emptyCode = $("code-body").innerHTML;
   const emptyStatus = $("code-status").innerHTML;
   const refsLink = $("refs-link");
@@ -471,6 +472,7 @@ ul.errors li { white-space: pre-wrap; }
     state.file = path;
     state.key = key || null;
     state.line = null;
+    state.end = null;
     state.fileView = view;
     renderFile();
   }
@@ -554,6 +556,9 @@ ul.errors li { white-space: pre-wrap; }
         }
         a.dataset.file = link.f;
         a.dataset.line = link.t;
+        if (link.e) {
+          a.dataset.end = link.e;
+        }
         a.dataset.version = version;
       }
       name.replaceWith(a);
@@ -563,7 +568,8 @@ ul.errors li { white-space: pre-wrap; }
   }
 
   // openDefinition opens a link's definition: its file in the same version at its line, with
-  // the key of its declaration or method, or its URL.
+  // the key of its declaration or method, or its URL. The link of a declaration's name
+  // selects the declaration's lines instead.
   function openDefinition(link, version) {
     if (link.u) {
       window.open(link.u, "_blank", "noopener");
@@ -572,6 +578,7 @@ ul.errors li { white-space: pre-wrap; }
     state.file = link.f;
     state.key = link.k || null;
     state.line = link.t;
+    state.end = link.e || null;
     state.fileView = version;
     renderFile();
   }
@@ -593,11 +600,11 @@ ul.errors li { white-space: pre-wrap; }
       renderFile();
       record(false);
     });
-    // The selection: the line that a link opened, else the declaration of the key in this file.
+    // The selection: the lines that a link opened, else the declaration of the key in this file.
     let where = null;
     if (state.fileView !== "diff") {
       const decl = state.key ? placeOf(state.key, state.fileView) : null;
-      where = state.line ? { start: state.line, end: state.line } : decl && decl.file === state.file ? decl : null;
+      where = state.line ? { start: state.line, end: state.end || state.line } : decl && decl.file === state.file ? decl : null;
     }
     let label = esc(state.file) + (state.line ? ":" + state.line : "") + " (" + viewNames[state.fileView] + ")";
     if (state.key) {
@@ -759,7 +766,7 @@ ul.errors li { white-space: pre-wrap; }
     const a = e.target.closest("a.ident");
     if (a && a.dataset.file) {
       e.preventDefault();
-      navigate(() => openDefinition({ f: a.dataset.file, t: Number(a.dataset.line), k: a.dataset.key }, a.dataset.version));
+      navigate(() => openDefinition({ f: a.dataset.file, t: Number(a.dataset.line), e: Number(a.dataset.end), k: a.dataset.key }, a.dataset.version));
     }
   });
 
@@ -991,7 +998,7 @@ ul.errors li { white-space: pre-wrap; }
   // opens that declaration.
   const place = () => ({
     diagram: state.diagram, view: { ...state.view },
-    file: state.file, key: state.key, line: state.line, fileView: state.fileView,
+    file: state.file, key: state.key, line: state.line, end: state.end, fileView: state.fileView,
   });
 
   function hashOf(p) {
@@ -1011,6 +1018,7 @@ ul.errors li { white-space: pre-wrap; }
       add("fv", p.fileView);
       add("k", p.key);
       add("l", p.line ? String(p.line) : "");
+      add("e", p.end ? String(p.end) : "");
     }
     return parts.length ? "#" + parts.join("&") : "";
   }
@@ -1020,7 +1028,10 @@ ul.errors li { white-space: pre-wrap; }
     const q = new URLSearchParams(hash.slice(1));
     const diagram = Math.max(0, data.diagrams.findIndex((d) => d.number === (q.get("d") || "")));
     const view = q.get("v") ? { [diagram]: q.get("v") } : {};
-    return { diagram, view, file: q.get("f"), key: q.get("k"), line: Number(q.get("l")) || null, fileView: q.get("fv") || "after" };
+    return {
+      diagram, view, file: q.get("f"), key: q.get("k"),
+      line: Number(q.get("l")) || null, end: Number(q.get("e")) || null, fileView: q.get("fv") || "after",
+    };
   }
 
   function record(push) {
@@ -1045,7 +1056,7 @@ ul.errors li { white-space: pre-wrap; }
   function restore(p) {
     state.view = { ...p.view };
     selectDiagram(p.diagram);
-    Object.assign(state, { file: p.file, key: p.key, line: p.line, fileView: p.fileView });
+    Object.assign(state, { file: p.file, key: p.key, line: p.line, end: p.end || null, fileView: p.fileView });
     if (state.file) {
       renderFile();
     } else {
@@ -1061,7 +1072,7 @@ ul.errors li { white-space: pre-wrap; }
       selectDiagram(0);
       showDecl(decodeURIComponent(hash.slice(6)), "after");
     } else {
-      restore(hash.length > 1 ? placeOfHash(hash) : { diagram: 0, view: {}, file: null, key: null, line: null, fileView: "after" });
+      restore(hash.length > 1 ? placeOfHash(hash) : { diagram: 0, view: {}, file: null, key: null, line: null, end: null, fileView: "after" });
     }
   }
 

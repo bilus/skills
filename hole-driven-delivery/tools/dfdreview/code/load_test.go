@@ -186,11 +186,14 @@ func TestLoadLinksIdentifiers(t *testing.T) {
 	}
 	links := func(b int) []code.Link {
 		return []code.Link{
+			{Line: 6, Col: 6, Len: 1, File: "p/a.go", To: 5, End: 6, Key: "p.A", In: "p.A"},
 			{Line: 6, Col: 34, Len: 7, URL: "https://pkg.go.dev/strings", In: "p.A"},
 			{Line: 6, Col: 42, Len: 9, URL: "https://pkg.go.dev/strings#TrimSpace", In: "p.A"},
 			{Line: 6, Col: 52, Len: 1, File: "p/a.go", To: 6, In: "p.A"},
 			{Line: 6, Col: 57, Len: 1, File: "p/b.go", To: b, Key: "p.b", In: "p.A"},
+			{Line: 8, Col: 5, Len: 1, File: "p/a.go", To: 8, End: 8, Key: "p.c", In: "p.c"},
 			{Line: 8, Col: 15, Len: 1, File: "p/b.go", To: b, Key: "p.b", In: "p.c"}, // after a two-byte letter, one UTF-16 unit
+			{Line: 10, Col: 6, Len: 1, File: "p/a.go", To: 10, End: 10, Key: "p.w", In: "p.w"},
 			{Line: 10, Col: 12, Len: 7, URL: "https://pkg.go.dev/strings", In: "p.w"},
 			{Line: 10, Col: 20, Len: 7, URL: "https://pkg.go.dev/strings#Builder", In: "p.w"},
 			{Line: 10, Col: 31, Len: 2, File: "p/a.go", To: 10, In: "p.w"},
@@ -205,6 +208,7 @@ func TestLoadLinksIdentifiers(t *testing.T) {
 	}
 	// A package of the code directory opens at the package clause of its first file.
 	q := []code.Link{
+		{Line: 5, Col: 5, Len: 1, File: "q/q.go", To: 5, End: 5, Key: "q.d", In: "q.d"},
 		{Line: 5, Col: 9, Len: 1, File: "p/a.go", To: 1, In: "q.d"},
 		{Line: 5, Col: 11, Len: 1, File: "p/a.go", To: 6, Key: "p.A", Funcs: []string{"p.A"}, In: "q.d"},
 	}
@@ -311,6 +315,45 @@ func C() int { return %d }
 // D stays the same.
 func D() int { return 0 }
 `, n)
+}
+
+// TestLoadLinksDeclarations checks the links of the names of declarations and methods: each
+// links to the lines of its own declaration, doc comment included.
+func TestLoadLinksDeclarations(t *testing.T) {
+	g := gittest.New(t)
+	g.Write(map[string]string{
+		"go.mod":        goMod,
+		"docs/flow.dfd": "[1. Run]\n",
+		"p/p.go": "package p\n\n// Shape has an area.\ntype Shape interface {\n\t// Area returns the area.\n\tArea() int\n}\n\n" +
+			"type (\n\t// Sq is a square.\n\tSq struct{ S int }\n\tn int\n)\n\n" +
+			"// Area returns the area of a square.\nfunc (s Sq) Area() int { return s.S * s.S }\n\nconst k, _ = 1, 2\n",
+	})
+	r, err := repo.Open(g.Dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := code.Load(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []code.Link
+	for _, l := range res.After.Links["p/p.go"] {
+		if l.End > 0 {
+			got = append(got, l)
+		}
+	}
+	// A blank name, a field and a parameter have no key, and so no link of their own.
+	want := []code.Link{
+		{Line: 4, Col: 6, Len: 5, File: "p/p.go", To: 3, End: 7, Key: "p.Shape", In: "p.Shape"},
+		{Line: 6, Col: 2, Len: 4, File: "p/p.go", To: 5, End: 6, Key: "p.Shape.Area", In: "p.Shape"}, // an interface's method
+		{Line: 11, Col: 2, Len: 2, File: "p/p.go", To: 10, End: 11, Key: "p.Sq", In: "p.Sq"},         // a spec of a group
+		{Line: 12, Col: 2, Len: 1, File: "p/p.go", To: 12, End: 12, Key: "p.n", In: "p.n"},
+		{Line: 16, Col: 13, Len: 4, File: "p/p.go", To: 15, End: 16, Key: "p.Sq.Area", In: "p.Sq.Area"},
+		{Line: 18, Col: 7, Len: 1, File: "p/p.go", To: 18, End: 18, Key: "p.k", In: "p.k"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("the links of the names:\n got %+v\nwant %+v", got, want)
+	}
 }
 
 func TestReadMarksKindsAndLinks(t *testing.T) {

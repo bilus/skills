@@ -33,6 +33,14 @@ func TestDeclarations(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("declarations = %v\nwant           %v", got, want)
 	}
+	// A line directive, which would put F at other.go:41, leaves the lines of the file's own text.
+	directed, err := code.Declarations(map[string]string{"d.go": "package delta\n\n//line other.go:40\n\nfunc F() {}\n"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := directed["delta.F"], (code.Place{File: "d.go", Start: 5, End: 5, Kind: "func"}); got != want {
+		t.Errorf("under a line directive: %+v, want %+v", got, want)
+	}
 	if _, err := code.Declarations(map[string]string{"bad.go": "package"}); err == nil || !strings.Contains(err.Error(), "bad.go") {
 		t.Errorf("parse error = %v, want one naming bad.go", err)
 	}

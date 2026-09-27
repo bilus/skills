@@ -29,11 +29,13 @@ type Resolution struct {
 	Links map[string][]Link   // the identifier links of each Go file, by path
 }
 
-// Link is an identifier that uses a declared object, with the object's definition.
+// Link is an identifier that uses a declared object, with the object's definition, or the
+// name of a declaration or a method, with the lines of that declaration.
 type Link struct {
 	Line, Col, Len int      // the identifier's line, and its column and length in UTF-16 code units, from 1
 	File           string   // the definition's file in the same version, relative to the code directory
-	To             int      // the definition's line in File
+	To             int      // the definition's line in File; for the name of a declaration, its first line, doc comment included
+	End            int      // for the name of a declaration, its last line; 0 for an identifier that uses an object
 	URL            string   // the definition's documentation, for one outside the code directory
 	Key            string   // the key of the declaration or method of the code directory that it names, "" for another object
 	Funcs          []string // the keys of the functions and methods of the module that it names; for an interface method, those of the implementations

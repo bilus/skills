@@ -155,7 +155,7 @@ func links(ls []code.Link) []page.Link {
 	}
 	out := make([]page.Link, 0, len(ls))
 	for _, l := range ls {
-		out = append(out, page.Link{Line: l.Line, Col: l.Col, Len: l.Len, File: l.File, To: l.To, URL: l.URL, Key: l.Key, Mark: l.Mark})
+		out = append(out, page.Link{Line: l.Line, Col: l.Col, Len: l.Len, File: l.File, To: l.To, End: l.End, URL: l.URL, Key: l.Key, Mark: l.Mark})
 	}
 	return out
 }

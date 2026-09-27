@@ -327,6 +327,19 @@ func TestShopSearchInChrome(t *testing.T) {
 				"the place in the history":           `data-hash="#f=receipt/receipt\.go&amp;fv=after&amp;k=receipt\.Print&amp;l=10"`,
 			},
 		},
+		{
+			name:   "selecting a declaration by its name",
+			hash:   "#f=cart/cart.go&fv=after",
+			script: `click("#code-body a[data-key='cart.Total'][data-end]"); click("#refs-link");`,
+			want: map[string]string{
+				"the status of the declaration": `cart\.Total in cart/cart\.go:12 \(After\)`,
+				"its doc comment, selected":     `<div class="line sel" id="L12">`,
+				"its last line, selected":       `<div class="line sel" id="L19">`,
+				"the line after it, unselected": `<div class="line" id="L20">`,
+				"a caller in the list":          `<a href="#" data-key="receipt\.Print" data-file="receipt/receipt\.go" data-line="10" data-version="after">receipt\.Print</a>`,
+				"the place in the history":      `data-hash="#f=cart/cart\.go&amp;fv=after&amp;k=cart\.Total&amp;l=12&amp;e=19"`,
+			},
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			dom := dumpDOM(t, chrome, "file://"+driven(t, opts.Out, c.script)+c.hash)

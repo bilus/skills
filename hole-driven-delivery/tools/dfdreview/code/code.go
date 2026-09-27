@@ -202,6 +202,9 @@ func uses(files map[string][]Link) map[string][]Use {
 	out := map[string][]Use{}
 	for file, links := range files {
 		for _, l := range links {
+			if l.End > 0 {
+				continue // the name of a declaration, not a use
+			}
 			for _, key := range append([]string{l.Key}, l.Funcs...) {
 				us := out[key]
 				u := Use{In: l.In, File: file, Line: l.Line}
@@ -395,11 +398,8 @@ func methodPlaces(files map[string]string) (map[string]Place, error) {
 			if _, taken := out[key]; taken || recv == "" {
 				continue
 			}
-			start := fd.Pos()
-			if fd.Doc != nil {
-				start = fd.Doc.Pos()
-			}
-			out[key] = Place{File: p, Start: fset.PositionFor(start, false).Line, End: fset.PositionFor(fd.End(), false).Line, Kind: "method"}
+			start, end := funcSpan(fd)
+			out[key] = Place{File: p, Start: fset.PositionFor(start, false).Line, End: fset.PositionFor(end, false).Line, Kind: "method"}
 		}
 	}
 	return out, nil
@@ -433,7 +433,8 @@ func Key(ref dfdtext.Reference) string {
 
 // Declarations returns the top-level declarations of files, keyed like "analyze.sumTypes".
 // The key joins the package name and the identifier; the first file in path order wins.
-// Methods are left out, since a box names a method by its type.
+// Methods are left out, since a box names a method by its type. The lines are the file's
+// own, whatever its //line directives say.
 //
 // Example: it places alpha.F on lines 3 to 4 with the kind func, and alpha.T on lines 7 to
 // 8 and alpha.U on line 9 with the kind type.
@@ -461,46 +462,82 @@ func Declarations(files map[string]string) (map[string]Place, error) {
 		if err != nil {
 			return nil, err
 		}
-		add := func(name, kind string, start, end token.Pos, doc *ast.CommentGroup) {
-			if doc != nil {
-				start = doc.Pos()
-			}
+		add := func(name, kind string, start, end token.Pos) {
 			key := f.Name.Name + "." + name
 			if _, taken := decls[key]; !taken {
-				decls[key] = Place{File: p, Start: fset.Position(start).Line, End: fset.Position(end).Line, Kind: kind}
+				decls[key] = Place{File: p, Start: fset.PositionFor(start, false).Line, End: fset.PositionFor(end, false).Line, Kind: kind}
 			}
 		}
 		for _, d := range f.Decls {
 			switch d := d.(type) {
 			case *ast.FuncDecl:
 				if d.Recv == nil {
-					add(d.Name.Name, "func", d.Pos(), d.End(), d.Doc)
+					start, end := funcSpan(d)
+					add(d.Name.Name, "func", start, end)
 				}
 			case *ast.GenDecl:
 				for _, spec := range d.Specs {
-					var names []*ast.Ident
-					var doc *ast.CommentGroup
+					start, end := specSpan(d, spec)
 					switch s := spec.(type) {
 					case *ast.TypeSpec:
-						names, doc = []*ast.Ident{s.Name}, s.Doc
+						add(s.Name.Name, "type", start, end)
 					case *ast.ValueSpec:
-						names, doc = s.Names, s.Doc
-					default:
-						continue
-					}
-					// In a group, a declaration is its own spec; alone, it is the whole declaration.
-					start, end := spec.Pos(), spec.End()
-					if !d.Lparen.IsValid() {
-						start, end, doc = d.Pos(), d.End(), d.Doc
-					}
-					for _, n := range names {
-						add(n.Name, d.Tok.String(), start, end, doc)
+						for _, n := range s.Names {
+							add(n.Name, d.Tok.String(), start, end)
+						}
 					}
 				}
 			}
 		}
 	}
 	return decls, nil
+}
+
+// funcSpan returns the first and last positions of a function or a method, doc comment
+// included.
+//
+// Example: it spans all four lines.
+//
+//	// Total sums the cost of the order's items.
+//	func Total(o Order) int {
+//		return sum(o.Items)
+//	}
+func funcSpan(d *ast.FuncDecl) (start, end token.Pos) {
+	start = d.Pos()
+	if d.Doc != nil {
+		start = d.Doc.Pos()
+	}
+	return start, d.End()
+}
+
+// specSpan returns the first and last positions of a spec of a top-level declaration, doc
+// comment included: the spec itself in a group, and the whole declaration without one.
+//
+// Example: it spans lines 1 to 2 for Order, and lines 5 to 6 for T.
+//
+//	// Order is the items a customer buys.
+//	type Order struct{ Items []Item }
+//
+//	type (
+//		// T is t.
+//		T int
+//	)
+func specSpan(d *ast.GenDecl, spec ast.Spec) (start, end token.Pos) {
+	var doc *ast.CommentGroup
+	switch s := spec.(type) {
+	case *ast.TypeSpec:
+		doc = s.Doc
+	case *ast.ValueSpec:
+		doc = s.Doc
+	}
+	start, end = spec.Pos(), spec.End()
+	if !d.Lparen.IsValid() {
+		start, end, doc = d.Pos(), d.End(), d.Doc
+	}
+	if doc != nil {
+		start = doc.Pos()
+	}
+	return start, end
 }
 
 // stdPackages returns the import paths of the standard library.

@@ -57,10 +57,12 @@ func firstClauses(root string, pkgs []*packages.Package) map[string]clause {
 }
 
 // fileLinks returns the identifier links of file f of p, in order. module holds the paths of
-// the module's packages, methods the methods of their types, and lines the file's text.
+// the module's packages, methods the methods of their types, and lines the file's text. The
+// name of each declaration and method, an interface's methods included, links to the lines
+// of its own declaration.
 //
-// Example: it links strings.TrimSpace and b in p.A, and b in p.c, the key of each link's
-// declaration or method.
+// Example: it links the names A and c to their declarations, and strings.TrimSpace and b in
+// p.A, and b in p.c, to their definitions.
 //
 //	package p
 //
@@ -70,6 +72,31 @@ func firstClauses(root string, pkgs []*packages.Package) map[string]clause {
 func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string]clause, module map[string]bool, methods []*types.Func, lines []string) []Link {
 	owners := fieldOwners(p.TypesInfo, f)
 	var out []Link
+	// locate puts identifier id's line, column and length into link, and reports false for an
+	// identifier outside the text.
+	locate := func(link *Link, id *ast.Ident) bool {
+		pos := p.Fset.PositionFor(id.Pos(), false)
+		if pos.Line < 1 || pos.Line > len(lines) || pos.Column-1 > len(lines[pos.Line-1]) {
+			return false
+		}
+		link.Line, link.Col, link.Len = pos.Line, utf16Len(lines[pos.Line-1][:pos.Column-1])+1, utf16Len(id.Name)
+		return true
+	}
+	// declare links the name of a declaration or a method, id, to its lines from start to end.
+	declare := func(id *ast.Ident, start, end token.Pos, in string) {
+		obj := p.TypesInfo.Defs[id]
+		key := objectKey(obj)
+		if key == "" {
+			return
+		}
+		link := definition(root, p.Fset, obj, "", clauses)
+		if !locate(&link, id) {
+			return
+		}
+		link.To, link.End = p.Fset.PositionFor(start, false).Line, p.Fset.PositionFor(end, false).Line
+		link.Key, link.In = key, in
+		out = append(out, link)
+	}
 	visit := func(n ast.Node, in string) {
 		ast.Inspect(n, func(n ast.Node) bool {
 			id, ok := n.(*ast.Ident)
@@ -80,14 +107,10 @@ func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string
 			if obj == nil || obj.Pkg() == nil {
 				return true
 			}
-			pos := p.Fset.PositionFor(id.Pos(), false)
-			if pos.Line < 1 || pos.Line > len(lines) || pos.Column-1 > len(lines[pos.Line-1]) {
+			link := definition(root, p.Fset, obj, owners[id], clauses)
+			if !locate(&link, id) {
 				return true
 			}
-			link := definition(root, p.Fset, obj, owners[id], clauses)
-			link.Line = pos.Line
-			link.Col = utf16Len(lines[pos.Line-1][:pos.Column-1]) + 1
-			link.Len = utf16Len(id.Name)
 			link.In = in
 			if link.File != "" {
 				link.Key = objectKey(obj)
@@ -108,10 +131,33 @@ func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string
 			if fn, ok := p.TypesInfo.Defs[d.Name].(*types.Func); ok {
 				in = funcKey(fn)
 			}
+			start, end := funcSpan(d)
+			declare(d.Name, start, end, in)
 			visit(d, in)
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
-				visit(spec, specKey(f.Name.Name, spec))
+				in := specKey(f.Name.Name, spec)
+				start, end := specSpan(d, spec)
+				switch s := spec.(type) {
+				case *ast.TypeSpec:
+					declare(s.Name, start, end, in)
+					if it, ok := s.Type.(*ast.InterfaceType); ok {
+						for _, m := range it.Methods.List {
+							mstart := m.Pos()
+							if m.Doc != nil {
+								mstart = m.Doc.Pos()
+							}
+							for _, name := range m.Names {
+								declare(name, mstart, m.End(), in)
+							}
+						}
+					}
+				case *ast.ValueSpec:
+					for _, name := range s.Names {
+						declare(name, start, end, in)
+					}
+				}
+				visit(spec, in)
 			}
 		}
 	}

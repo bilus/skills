@@ -75,13 +75,15 @@ type File struct {
 }
 
 // Link is an identifier and its definition: a line of a Go file of the code directory in
-// the same version, or a URL. The short keys keep the page small.
+// the same version, or a URL. The name of a declaration or a method links to the lines of
+// its declaration instead. The short keys keep the page small.
 type Link struct {
 	Line int    `json:"l"`
 	Col  int    `json:"c"` // in UTF-16 code units, from 1
 	Len  int    `json:"n"` // in UTF-16 code units
 	File string `json:"f,omitempty"`
-	To   int    `json:"t,omitempty"`
+	To   int    `json:"t,omitempty"` // for the name of a declaration, its first line, doc comment included
+	End  int    `json:"e,omitempty"` // for the name of a declaration, its last line
 	URL  string `json:"u,omitempty"`
 	Key  string `json:"k,omitempty"` // the key of the declaration or method that it names
 	Mark string `json:"m,omitempty"` // "changed" or "reached" inside a changed declaration
