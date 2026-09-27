@@ -472,6 +472,39 @@ func TestReadListsUses(t *testing.T) {
 	}
 }
 
+func TestLoadFindsImplementations(t *testing.T) {
+	g := gittest.New(t)
+	g.Write(map[string]string{
+		"go.mod":        goMod,
+		"docs/flow.dfd": "[1. Run]\n",
+		"iface/iface.go": "package iface\n\n// Shape has an area.\ntype Shape interface{ Area() int }\n\n" +
+			"// Lonely has no implementation.\ntype Lonely interface{ Alone() }\n\n// Any has no methods.\ntype Any interface{}\n",
+		"sq/sq.go":   "package sq\n\n// Square is a shape.\ntype Square struct{ S int }\n\n// Area returns the area.\nfunc (s Square) Area() int { return s.S * s.S }\n",
+		"emb/emb.go": "package emb\n\nimport \"example.com/m/sq\"\n\n// Big gets Area from sq.Square.\ntype Big struct{ sq.Square }\n",
+		"ptr/ptr.go": "package ptr\n\n// Circle is a shape through its pointer.\ntype Circle struct{ R int }\n\n// Area returns the area.\nfunc (c *Circle) Area() int { return 3 * c.R * c.R }\n",
+	})
+	r, err := repo.Open(g.Dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := code.Load(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An interface without methods, which every type implements, has no entry.
+	want := map[string][]code.Implementation{
+		"iface.Shape": {
+			{Key: "emb.Big", File: "emb/emb.go", Line: 6}, // through its embedded field
+			{Key: "ptr.Circle", File: "ptr/ptr.go", Line: 4, Pointer: true},
+			{Key: "sq.Square", File: "sq/sq.go", Line: 4},
+		},
+		"iface.Lonely": {},
+	}
+	if !reflect.DeepEqual(res.After.Implementations, want) {
+		t.Errorf("implementations:\n got %+v\nwant %+v", res.After.Implementations, want)
+	}
+}
+
 func TestReadListsUncoveredChanges(t *testing.T) {
 	step := func(n int) map[string]string {
 		return map[string]string{

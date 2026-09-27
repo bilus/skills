@@ -40,6 +40,7 @@ func shop(step int) map[string]string {
 			"// Print writes the order's total.\n" +
 			"func Print(o cart.Order) string { return fmt.Sprintf(\"total %d\", cart.Total(o)) }\n",
 		"receipt/footer.go": "package receipt\n\n// Footer ends each receipt.\n" + footer + "\n",
+		"cart/pricer.go":    "package cart\n\n// Pricer prices a line of an order.\ntype Pricer interface{ cost() int }\n",
 	}
 }
 
@@ -127,6 +128,13 @@ func TestBuildShop(t *testing.T) {
 	} {
 		if got := d.Decls[key].After; got == nil || *got != want {
 			t.Errorf("%s: %+v, want %+v", key, got, want)
+		}
+	}
+	// Item implements Pricer through its method cost, in both versions.
+	pricer := []page.Implementation{{Key: "cart.Item", File: "cart/cart.go", Line: 7}}
+	for version, impls := range map[string]map[string][]page.Implementation{"before": d.Implementations.Before, "after": d.Implementations.After} {
+		if !reflect.DeepEqual(impls["cart.Pricer"], pricer) {
+			t.Errorf("%s: the implementations of cart.Pricer: %+v, want %+v", version, impls["cart.Pricer"], pricer)
 		}
 	}
 	// A test calls cart.Total, and so does receipt.Print, in both versions.
@@ -338,6 +346,19 @@ func TestShopSearchInChrome(t *testing.T) {
 				"the definition's line, in focus":     `<div class="line sel focus" id="L13">`,
 				"its last line, selected":             `<div class="line sel" id="L19">`,
 				"the place in the history":            `data-hash="#f=cart/cart\.go&amp;fv=after&amp;k=cart\.Total&amp;l=13"`,
+				"no implementations for a function":   `aria-controls="impls" hidden="">Show implementations</button>`,
+			},
+		},
+		{
+			name:   "showing the implementations of an interface",
+			hash:   "#code/cart.Pricer",
+			script: `click("#impls-link");`,
+			want: map[string]string{
+				"the status of the interface": `cart\.Pricer in cart/pricer\.go:3 \(After\)`,
+				"the link to close the list":  `aria-expanded="true" aria-controls="impls">Hide implementations</button>`,
+				"the list's heading":          `<p>Implementations of cart\.Pricer in the After version:</p>`,
+				"the implementing type": `<li><a href="#" data-key="cart\.Item" data-file="cart/cart\.go" data-line="7" data-version="after">cart\.Item</a>` +
+					`<span class="where">cart/cart\.go:7</span></li>`,
 			},
 		},
 		{

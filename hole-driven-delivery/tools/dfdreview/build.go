@@ -115,6 +115,7 @@ func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index)
 	decls(c.After, true)
 	decls(c.AfterMethods, true)
 	data.Uses = page.Uses{Before: uses(c.BeforeUses), After: uses(c.AfterUses)}
+	data.Implementations = page.Implementations{Before: implementations(c.BeforeImplementations), After: implementations(c.AfterImplementations)}
 	if err := os.MkdirAll(filepath.Dir(opts.Out), 0o755); err != nil {
 		return err
 	}
@@ -166,6 +167,20 @@ func uses(byKey map[string][]code.Use) map[string][]page.Use {
 	for key, us := range byKey {
 		for _, u := range us {
 			out[key] = append(out[key], page.Use{In: u.In, File: u.File, Line: u.Line})
+		}
+	}
+	return out
+}
+
+// implementations turns the types that implement each interface into the page's form. An
+// interface without any keeps its empty list, which tells the page that the key names an
+// interface.
+func implementations(byKey map[string][]code.Implementation) map[string][]page.Implementation {
+	out := make(map[string][]page.Implementation, len(byKey))
+	for key, list := range byKey {
+		out[key] = make([]page.Implementation, 0, len(list))
+		for _, m := range list {
+			out[key] = append(out[key], page.Implementation{Key: m.Key, File: m.File, Line: m.Line, Pointer: m.Pointer})
 		}
 	}
 	return out

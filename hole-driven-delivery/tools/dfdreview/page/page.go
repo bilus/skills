@@ -17,14 +17,16 @@ type Data struct {
 	Files    map[string]File `json:"files"`
 	Decls    map[string]Decl `json:"decls"` // the declarations and the methods, by key
 	Uses     Uses            `json:"uses"`
-	Terms    Versions        `json:"terms"`
-	Changed  []Changed       `json:"changed"`
-	Brief    string          `json:"brief"`
-	Metaphor string          `json:"metaphor"`
-	OldScore *Card           `json:"oldScore"`
-	NewScore *Card           `json:"newScore"`
-	Report   string          `json:"report"`
-	Errors   []string        `json:"errors"` // the package errors of both versions
+	// The types that implement each interface with methods, by the interface's key.
+	Implementations Implementations `json:"implementations"`
+	Terms           Versions        `json:"terms"`
+	Changed         []Changed       `json:"changed"`
+	Brief           string          `json:"brief"`
+	Metaphor        string          `json:"metaphor"`
+	OldScore        *Card           `json:"oldScore"`
+	NewScore        *Card           `json:"newScore"`
+	Report          string          `json:"report"`
+	Errors          []string        `json:"errors"` // the package errors of both versions
 	// The changed declarations and methods that no drawing covers.
 	Uncovered []Uncovered `json:"uncovered"`
 }
@@ -42,6 +44,23 @@ type Use struct {
 	In   string `json:"i,omitempty"`
 	File string `json:"f"`
 	Line int    `json:"l"`
+}
+
+// Implementations holds, for each version, the types that implement each interface with
+// methods, by the interface's key; an interface that no type implements has an empty list.
+type Implementations struct {
+	Before map[string][]Implementation `json:"before"`
+	After  map[string][]Implementation `json:"after"`
+}
+
+// Implementation is a type that implements an interface: its key, the file and line of its
+// name, and whether only its pointer implements the interface. The short keys keep the page
+// small.
+type Implementation struct {
+	Key     string `json:"k"`
+	File    string `json:"f"`
+	Line    int    `json:"l"`
+	Pointer bool   `json:"p,omitempty"`
 }
 
 // Uncovered is a changed declaration or method that no drawing covers, with the place of its

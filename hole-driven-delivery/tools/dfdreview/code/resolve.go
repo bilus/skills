@@ -27,6 +27,17 @@ type Resolution struct {
 	Calls map[string][]string // by the key of each function and method, such as "render.renderer.text", the keys of the functions and methods of the module that it calls
 	Files map[string]string   // the text of every Go file as the load parsed it, test files included, by path relative to the code directory
 	Links map[string][]Link   // the identifier links of each Go file, by path
+	// By the key of each interface of the module with methods, the types that implement it.
+	Implementations map[string][]Implementation
+}
+
+// Implementation is a named type of the module that implements an interface: its key, the
+// place of its name, and whether only its pointer implements the interface.
+type Implementation struct {
+	Key     string
+	File    string
+	Line    int
+	Pointer bool
 }
 
 // Link is an identifier that uses a declared object, with the object's definition, or the
@@ -110,6 +121,7 @@ func load(dir, version string) (*Resolution, []string) {
 		return nil, []string{version + ": " + err.Error()}
 	}
 	res := &Resolution{Calls: map[string][]string{}, Files: map[string]string{}}
+	fset := token.NewFileSet()
 	var mu sync.Mutex
 	record := func(file string, text []byte) {
 		if rel, ok := within(root, file); ok {
@@ -121,6 +133,7 @@ func load(dir, version string) (*Resolution, []string) {
 	cfg := &packages.Config{
 		Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes |
 			packages.NeedTypesInfo | packages.NeedImports,
+		Fset:       fset,
 		Dir:        root,
 		Env:        append(os.Environ(), "GOWORK=off"),
 		BuildFlags: []string{"-mod=readonly"},
@@ -176,7 +189,64 @@ func load(dir, version string) (*Resolution, []string) {
 		}
 	}
 	res.Links = links(root, pkgs, res.Files, module, methods)
+	res.Implementations = implementers(root, fset, pkgs, module)
 	return res, errs
+}
+
+// implementers returns, by the key of each interface with methods of the packages in module,
+// the named types of those packages that implement it, in order of key. An interface that no
+// type implements has an empty list. A type counts when its value implements the interface,
+// or else its pointer. Generic types are left out, since go/types leaves their answer open.
+func implementers(root string, fset *token.FileSet, pkgs []*packages.Package, module map[string]bool) map[string][]Implementation {
+	var ifaces, concrete []*types.TypeName
+	for _, p := range pkgs {
+		if !module[p.PkgPath] || p.ID != p.PkgPath || p.Types == nil {
+			continue
+		}
+		scope := p.Types.Scope()
+		for _, name := range scope.Names() {
+			tn, ok := scope.Lookup(name).(*types.TypeName)
+			if !ok || tn.IsAlias() {
+				continue
+			}
+			named, ok := tn.Type().(*types.Named)
+			if !ok || named.TypeParams().Len() > 0 {
+				continue
+			}
+			if it, ok := named.Underlying().(*types.Interface); !ok {
+				concrete = append(concrete, tn)
+			} else if it.IsMethodSet() && it.NumMethods() > 0 {
+				ifaces = append(ifaces, tn)
+			}
+		}
+	}
+	out := map[string][]Implementation{}
+	for _, iface := range ifaces {
+		it := iface.Type().Underlying().(*types.Interface)
+		key := iface.Pkg().Name() + "." + iface.Name()
+		if out[key] == nil {
+			out[key] = []Implementation{}
+		}
+		for _, tn := range concrete {
+			value := types.Implements(tn.Type(), it)
+			if !value && !types.Implements(types.NewPointer(tn.Type()), it) {
+				continue
+			}
+			pos := fset.PositionFor(tn.Pos(), false)
+			if file, ok := within(root, pos.Filename); ok {
+				out[key] = append(out[key], Implementation{Key: tn.Pkg().Name() + "." + tn.Name(), File: file, Line: pos.Line, Pointer: !value})
+			}
+		}
+	}
+	for _, list := range out {
+		sort.Slice(list, func(i, j int) bool {
+			if list[i].Key != list[j].Key {
+				return list[i].Key < list[j].Key
+			}
+			return list[i].File < list[j].File
+		})
+	}
+	return out
 }
 
 // calls records, by the key of each function and method of p, the functions and methods of

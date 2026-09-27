@@ -101,16 +101,16 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
 #code-head { position: sticky; top: 0; z-index: 1; background: var(--panel); border-bottom: 1px solid var(--rule); padding: 8px 12px 0; }
 #code-line { position: relative; margin-bottom: 6px; }
 #code-status { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); overflow-wrap: anywhere; }
-#refs-link { margin-left: 10px; padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer;
+#refs-link, #impls-link { margin-left: 10px; padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer;
   font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; text-decoration: underline; }
-#refs { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 2; max-height: 50vh; overflow: auto; padding: 6px 10px;
+#refs, #impls { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 2; max-height: 50vh; overflow: auto; padding: 6px 10px;
   background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); }
-#refs p { margin: 0 0 4px; color: var(--muted); font-size: 12px; }
-#refs ul { list-style: none; margin: 0; padding: 0; font: 12.5px/1.8 ui-monospace, SFMono-Regular, Menlo, monospace; }
-#refs li { display: flex; flex-wrap: wrap; column-gap: 12px; }
-#refs a { color: var(--accent); text-decoration: none; }
-#refs a:hover, #refs a:focus { text-decoration: underline; }
-#refs .where { color: var(--muted); }
+#refs p, #impls p { margin: 0 0 4px; color: var(--muted); font-size: 12px; }
+#refs ul, #impls ul { list-style: none; margin: 0; padding: 0; font: 12.5px/1.8 ui-monospace, SFMono-Regular, Menlo, monospace; }
+#refs li, #impls li { display: flex; flex-wrap: wrap; column-gap: 12px; }
+#refs a, #impls a { color: var(--accent); text-decoration: none; }
+#refs a:hover, #refs a:focus, #impls a:hover, #impls a:focus { text-decoration: underline; }
+#refs .where, #impls .where { color: var(--muted); }
 #code-body { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 #code-body .empty { padding: 20px; color: var(--muted); font: 14px/1.5 system-ui, sans-serif; }
 .line { display: flex; white-space: pre; }
@@ -173,8 +173,9 @@ ul.errors li { white-space: pre-wrap; }
   <div id="splitter" role="separator" aria-orientation="vertical" aria-label="Resize the code panel" tabindex="0" title="Drag to resize; double-click to reset"></div>
   <aside id="code" aria-label="Code">
     <div id="code-head">
-      <div id="code-line"><span id="code-status">No file open.</span><button type="button" id="refs-link" aria-expanded="false" aria-controls="refs" hidden>Show references</button>
+      <div id="code-line"><span id="code-status">No file open.</span><button type="button" id="refs-link" aria-expanded="false" aria-controls="refs" hidden>Show references</button><button type="button" id="impls-link" aria-expanded="false" aria-controls="impls" hidden>Show implementations</button>
         <div id="refs" hidden></div>
+        <div id="impls" hidden></div>
       </div>
       <div id="code-views" class="tabs small" role="tablist" aria-label="Versions"></div>
     </div>
@@ -196,6 +197,8 @@ ul.errors li { white-space: pre-wrap; }
   const emptyStatus = $("code-status").innerHTML;
   const refsLink = $("refs-link");
   const refs = $("refs");
+  const implsLink = $("impls-link");
+  const impls = $("impls");
 
   $("title").textContent = data.title;
   $("subtitle").textContent = data.base
@@ -424,11 +427,14 @@ ul.errors li { white-space: pre-wrap; }
   }
 
   // The code panel. status shows a message above the code and hides the "Show references"
-  // link, which renderFile shows again for a declaration or a method.
+  // and "Show implementations" links, which renderFile shows again for a declaration or a
+  // method, and for an interface.
   function status(html) {
     $("code-status").innerHTML = html;
     refsLink.hidden = true;
+    implsLink.hidden = true;
     closeRefs();
+    closeImpls();
   }
 
   function placeOf(key, version) {
@@ -626,6 +632,7 @@ ul.errors li { white-space: pre-wrap; }
     }
     status(label);
     refsLink.hidden = !state.key;
+    implsLink.hidden = !implementationsOf(state.key);
     const out = [];
     if (state.fileView === "diff") {
       f.diff.replace(/\n$/, "").split("\n").forEach((ln, i) => {
@@ -934,6 +941,7 @@ ul.errors li { white-space: pre-wrap; }
   // The "Show references" link lists the uses of the open declaration or method in the open
   // version, one line for each declaration or method that holds some, with their lines.
   function openRefs() {
+    closeImpls();
     const version = state.fileView === "before" ? "before" : "after";
     const list = ((data.uses || {})[version] || {})[state.key] || [];
     const groups = new Map();
@@ -992,23 +1000,67 @@ ul.errors li { white-space: pre-wrap; }
     refsLink.setAttribute("aria-expanded", "false");
   }
 
+  // implementationsOf returns the types that implement an interface in the open version, or
+  // null for a key of anything else.
+  function implementationsOf(key) {
+    const all = (data.implementations || {})[state.fileView === "before" ? "before" : "after"] || {};
+    return key && Object.prototype.hasOwnProperty.call(all, key) ? all[key] : null;
+  }
+
+  // The "Show implementations" link lists the types that implement the open interface in the
+  // open version, a type marked with "*" when only its pointer implements it.
+  function openImpls() {
+    closeRefs();
+    const version = state.fileView === "before" ? "before" : "after";
+    const list = implementationsOf(state.key) || [];
+    const head = document.createElement("p");
+    head.textContent = (list.length ? "Implementations of " : "No implementations of ") + state.key + " in the " +
+      viewNames[version] + " version" + (list.length ? ":" : ".");
+    impls.replaceChildren(head);
+    if (list.length) {
+      const ul = document.createElement("ul");
+      list.forEach((m) => {
+        const li = document.createElement("li");
+        const where = document.createElement("span");
+        where.className = "where";
+        where.textContent = m.f + ":" + m.l;
+        li.append(refLink((m.p ? "*" : "") + m.k, { key: m.k, file: m.f }, m.l, version), where);
+        ul.appendChild(li);
+      });
+      impls.appendChild(ul);
+    }
+    impls.hidden = false;
+    implsLink.textContent = "Hide implementations";
+    implsLink.setAttribute("aria-expanded", "true");
+  }
+
+  function closeImpls() {
+    impls.hidden = true;
+    impls.replaceChildren();
+    implsLink.textContent = "Show implementations";
+    implsLink.setAttribute("aria-expanded", "false");
+  }
+
   refsLink.addEventListener("click", () => (refs.hidden ? openRefs() : closeRefs()));
-  refs.addEventListener("click", (e) => {
+  implsLink.addEventListener("click", () => (impls.hidden ? openImpls() : closeImpls()));
+  [refs, impls].forEach((list) => list.addEventListener("click", (e) => {
     const a = e.target.closest("a[data-file]");
     if (a) {
       e.preventDefault();
       navigate(() => openDefinition({ f: a.dataset.file, t: Number(a.dataset.line), k: a.dataset.key }, a.dataset.version));
     }
-  });
-  // A click elsewhere, or Escape, closes the list.
+  }));
+  // A click elsewhere, or Escape, closes the lists.
   document.addEventListener("click", (e) => {
-    if (!refs.hidden && !e.target.closest("#refs, #refs-link")) {
+    if (!e.target.closest("#refs, #refs-link, #impls, #impls-link")) {
       closeRefs();
+      closeImpls();
     }
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !refs.hidden) {
+    if (e.key === "Escape") {
       closeRefs();
+      closeImpls();
     }
   });
 

@@ -30,8 +30,10 @@ type Index struct {
 	Changed                     []repo.Change
 	BeforeLinks, AfterLinks     map[string][]Link // the identifier links of each Go file, by path
 	BeforeUses, AfterUses       map[string][]Use  // the uses of each declaration and method, by key
-	Errors                      []string          // the package errors of both versions
-	Uncovered                   []Uncovered       // the changed declarations and methods that no drawing covers, by key
+	// The types that implement each interface of the module with methods, by its key.
+	BeforeImplementations, AfterImplementations map[string][]Implementation
+	Errors                                      []string    // the package errors of both versions
+	Uncovered                                   []Uncovered // the changed declarations and methods that no drawing covers, by key
 }
 
 // Use is an identifier that names a declaration or a method: its line, and the key of the
@@ -147,6 +149,7 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 			}
 			idx.BeforeLinks = markLinks(res.Before.Links, idx)
 			idx.BeforeUses = uses(idx.BeforeLinks)
+			idx.BeforeImplementations = res.Before.Implementations
 		}
 		if res.After != nil {
 			for file, text := range res.After.Files {
@@ -156,6 +159,7 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 			}
 			idx.AfterLinks = markLinks(res.After.Links, idx)
 			idx.AfterUses = uses(idx.AfterLinks)
+			idx.AfterImplementations = res.After.Implementations
 		}
 		idx.Errors = res.Errors
 		// A version without a resolution keeps the texts from git.
