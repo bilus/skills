@@ -24,7 +24,7 @@ type Resolved struct {
 
 // Resolution is what the load finds in one version of the module.
 type Resolution struct {
-	Calls map[string][]string // by the key of each function and method, such as "render.renderer.text", the keys of the functions and methods of its package that it calls
+	Calls map[string][]string // by the key of each function and method, such as "render.renderer.text", the keys of the functions and methods of the module that it calls
 	Files map[string]string   // the text of every Go file as the load parsed it, test files included, by path relative to the code directory
 	Links map[string][]Link   // the identifier links of each Go file, by path
 }
@@ -35,7 +35,7 @@ type Link struct {
 	File           string   // the definition's file in the same version, relative to the code directory
 	To             int      // the definition's line in File
 	URL            string   // the definition's documentation, for one outside the code directory
-	Funcs          []string // the keys of the functions and methods of its package that it names; for an interface method, those of the implementations
+	Funcs          []string // the keys of the functions and methods of the module that it names; for an interface method, those of the implementations
 	In             string   // the key of the function or method whose declaration holds the identifier, "" outside one
 	Mark           string   // MarkChanged or MarkReached for a link inside a changed declaration to a changed function or method, "" otherwise
 }
@@ -47,7 +47,7 @@ const (
 )
 
 // Load type-checks the module in both versions. It records the calls that every function
-// and method makes within its package, the text and the identifier links of every Go file,
+// and method makes within the module, the text and the identifier links of every Go file,
 // and the package errors. It reads the base from the base export, a temporary copy of the
 // module directory's blobs at the base that it deletes at the end. It returns an error only
 // when it cannot run: an error that the go command or the type checker reports becomes a
@@ -149,6 +149,15 @@ func load(dir, version string) (*Resolution, []string) {
 			}
 		}
 	})
+	// The packages of the module, without their tests, and the methods of their types.
+	module := map[string]bool{}
+	var methods []*types.Func
+	for _, p := range pkgs {
+		if p.ID == p.PkgPath && !strings.HasSuffix(p.PkgPath, ".test") && p.Types != nil {
+			module[p.PkgPath] = true
+			methods = append(methods, concreteMethods(p)...)
+		}
+	}
 	for _, p := range pkgs {
 		for _, file := range p.IgnoredFiles {
 			text, err := os.ReadFile(file)
@@ -158,20 +167,19 @@ func load(dir, version string) (*Resolution, []string) {
 			}
 			record(file, text)
 		}
-		// The reach follows the package without its tests.
-		if p.ID == p.PkgPath && !strings.HasSuffix(p.PkgPath, ".test") && p.Types != nil && p.TypesInfo != nil {
-			calls(p, res.Calls)
+		// The reach follows the module without its tests.
+		if module[p.PkgPath] && p.ID == p.PkgPath && p.TypesInfo != nil {
+			calls(p, module, methods, res.Calls)
 		}
 	}
-	res.Links = links(root, pkgs, res.Files)
+	res.Links = links(root, pkgs, res.Files, module, methods)
 	return res, errs
 }
 
 // calls records, by the key of each function and method of p, the functions and methods of
-// p that it calls or refers to. A call of an interface method stands for the method of every
-// type of p that implements the interface.
-func calls(p *packages.Package, out map[string][]string) {
-	methods := concreteMethods(p)
+// the packages in module that it calls or refers to. A call of an interface method stands for
+// every one of methods that implements the interface.
+func calls(p *packages.Package, module map[string]bool, methods []*types.Func, out map[string][]string) {
 	for _, f := range p.Syntax {
 		for _, d := range f.Decls {
 			fd, ok := d.(*ast.FuncDecl)
@@ -186,7 +194,7 @@ func calls(p *packages.Package, out map[string][]string) {
 			if fd.Body != nil {
 				ast.Inspect(fd.Body, func(n ast.Node) bool {
 					if id, ok := n.(*ast.Ident); ok {
-						if callee, ok := p.TypesInfo.Uses[id].(*types.Func); ok && callee.Pkg() == p.Types {
+						if callee, ok := p.TypesInfo.Uses[id].(*types.Func); ok && inModule(callee, module) {
 							for _, m := range implementations(callee.Origin(), methods) {
 								callees[funcKey(m)] = true
 							}
@@ -198,6 +206,11 @@ func calls(p *packages.Package, out map[string][]string) {
 			out[funcKey(fn)] = sorted(callees)
 		}
 	}
+}
+
+// inModule reports whether fn belongs to one of the packages in module.
+func inModule(fn *types.Func, module map[string]bool) bool {
+	return fn.Pkg() != nil && module[fn.Pkg().Path()]
 }
 
 // concreteMethods returns the methods of the types of p that are not interfaces.

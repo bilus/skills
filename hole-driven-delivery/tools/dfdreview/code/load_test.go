@@ -100,7 +100,7 @@ func TestLoadResolvesCalls(t *testing.T) {
 		"p.F": {"p.T.M"},
 		"p.G": {"p.U.M"},
 		"p.H": {"p.T.M", "p.U.M"}, // both types implement I
-		"q.K": nil,                // p.F lies in another package
+		"q.K": {"p.F"},            // the reach crosses packages
 	} {
 		got := append([]string(nil), res.After.Calls[key]...)
 		sort.Strings(got)
@@ -204,7 +204,7 @@ func TestLoadLinksIdentifiers(t *testing.T) {
 		t.Errorf("after:\n got %+v\nwant %+v", got, want)
 	}
 	// A package of the code directory opens at the package clause of its first file.
-	q := []code.Link{{Line: 5, Col: 9, Len: 1, File: "p/a.go", To: 1}, {Line: 5, Col: 11, Len: 1, File: "p/a.go", To: 6}}
+	q := []code.Link{{Line: 5, Col: 9, Len: 1, File: "p/a.go", To: 1}, {Line: 5, Col: 11, Len: 1, File: "p/a.go", To: 6, Funcs: []string{"p.A"}}}
 	for _, v := range []*code.Resolution{res.Before, res.After} {
 		if got := v.Links["q/q.go"]; !reflect.DeepEqual(got, q) {
 			t.Errorf("q/q.go:\n got %+v\nwant %+v", got, q)
@@ -219,7 +219,7 @@ func TestReadMarksByReach(t *testing.T) {
 		"p.F": true,  // reaches T.M, which changed
 		"p.G": false, // reaches U.M only, though T.M shares its name
 		"p.H": true,  // reaches T.M through I
-		"q.K": false, // p.F lies in another package
+		"q.K": true,  // it reaches T.M through p.F, in another package
 		"p.T": false, // a type keeps its own rule
 	} {
 		if got := c.ChangedDecls[key]; got != want {
@@ -325,7 +325,7 @@ func TestReadMarksKindsAndLinks(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := index(t, r, g.Dir)
-	for key, want := range map[string]string{"p.A": code.MarkReached, "p.B": code.MarkReached, "p.C": code.MarkChanged, "p.D": "", "q.E": ""} {
+	for key, want := range map[string]string{"p.A": code.MarkReached, "p.B": code.MarkReached, "p.C": code.MarkChanged, "p.D": "", "q.E": code.MarkReached} {
 		got := ""
 		switch {
 		case c.Reached[key]:
@@ -348,8 +348,44 @@ func TestReadMarksKindsAndLinks(t *testing.T) {
 	want := map[string]string{
 		"p/p.go:4:23": code.MarkReached, // B in A
 		"p/p.go:7:23": code.MarkChanged, // C in B; D, at 7:29, stays unmarked
+		"q/q.go:6:25": code.MarkReached, // p.A in E, across packages
 	}
 	if !reflect.DeepEqual(marks, want) {
 		t.Errorf("marked links %v, want %v", marks, want)
+	}
+}
+
+func TestReadReachesImplementationsInOtherPackages(t *testing.T) {
+	shapes := func(area string) map[string]string {
+		return map[string]string{
+			"go.mod":         goMod,
+			"docs/flow.dfd":  "[1. Sum the areas\n (use.Total)]\n",
+			"iface/iface.go": "package iface\n\n// Shape has an area.\ntype Shape interface{ Area() int }\n",
+			"sq/sq.go":       "package sq\n\n// Square is a shape.\ntype Square struct{ S int }\n\n// Area returns the area.\nfunc (s Square) Area() int { return " + area + " }\n",
+			"emb/emb.go":     "package emb\n\nimport \"example.com/m/sq\"\n\n// Big gets Area from sq.Square.\ntype Big struct{ sq.Square }\n",
+			"ptr/ptr.go":     "package ptr\n\n// Circle is a shape through its pointer.\ntype Circle struct{ R int }\n\n// Area returns the area.\nfunc (c *Circle) Area() int { return 3 * c.R * c.R }\n",
+			"use/use.go":     "package use\n\nimport \"example.com/m/iface\"\n\n// Total calls Area through the interface.\nfunc Total(s iface.Shape) int { return s.Area() }\n",
+		}
+	}
+	g := gittest.New(t)
+	g.Write(shapes("s.S * s.S"))
+	base := g.Commit("base")
+	g.Write(shapes("s.S * s.S * 1"))
+	r, err := repo.Open(g.Dir, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := code.Load(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := append([]string(nil), res.After.Calls["use.Total"]...)
+	sort.Strings(got)
+	if want := []string{"ptr.Circle.Area", "sq.Square.Area"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("use.Total calls %v, want %v", got, want)
+	}
+	c := index(t, r, g.Dir)
+	if !c.Reached["use.Total"] || c.ChangedDecls["ptr.Circle.Area"] {
+		t.Errorf("use.Total reached: %v, ptr.Circle.Area changed: %v", c.Reached["use.Total"], c.ChangedDecls["ptr.Circle.Area"])
 	}
 }

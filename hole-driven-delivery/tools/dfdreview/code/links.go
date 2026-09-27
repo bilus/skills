@@ -17,21 +17,21 @@ type clause struct {
 }
 
 // links returns the identifier links of each Go file under root in pkgs, by path. texts holds
-// the files' texts, which give the columns in UTF-16 code units.
-func links(root string, pkgs []*packages.Package, texts map[string]string) map[string][]Link {
+// the files' texts, which give the columns in UTF-16 code units. module holds the paths of the
+// module's packages, and methods the methods of their types.
+func links(root string, pkgs []*packages.Package, texts map[string]string, module map[string]bool, methods []*types.Func) map[string][]Link {
 	clauses := firstClauses(root, pkgs)
 	out := map[string][]Link{}
 	for _, p := range pkgs {
 		if p.TypesInfo == nil || p.Types == nil {
 			continue
 		}
-		methods := concreteMethods(p)
 		for _, f := range p.Syntax {
 			rel, ok := within(root, p.Fset.PositionFor(f.Pos(), false).Filename)
 			if _, done := out[rel]; !ok || done {
 				continue
 			}
-			out[rel] = fileLinks(root, p, f, clauses, methods, strings.Split(texts[rel], "\n"))
+			out[rel] = fileLinks(root, p, f, clauses, module, methods, strings.Split(texts[rel], "\n"))
 		}
 	}
 	return out
@@ -56,9 +56,9 @@ func firstClauses(root string, pkgs []*packages.Package) map[string]clause {
 	return out
 }
 
-// fileLinks returns the identifier links of file f of p, in order. methods holds the concrete
-// methods of p, and lines the file's text.
-func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string]clause, methods []*types.Func, lines []string) []Link {
+// fileLinks returns the identifier links of file f of p, in order. module holds the paths of
+// the module's packages, methods the methods of their types, and lines the file's text.
+func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string]clause, module map[string]bool, methods []*types.Func, lines []string) []Link {
 	owners := fieldOwners(p.TypesInfo, f)
 	var out []Link
 	for _, d := range f.Decls {
@@ -86,7 +86,7 @@ func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string
 			link.Col = utf16Len(lines[pos.Line-1][:pos.Column-1]) + 1
 			link.Len = utf16Len(id.Name)
 			link.In = in
-			if fn, ok := obj.(*types.Func); ok && fn.Pkg() == p.Types {
+			if fn, ok := obj.(*types.Func); ok && inModule(fn, module) {
 				for _, m := range implementations(fn.Origin(), methods) {
 					link.Funcs = append(link.Funcs, funcKey(m))
 				}

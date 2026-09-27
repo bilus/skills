@@ -72,7 +72,7 @@ func TestBuildShop(t *testing.T) {
 	d := readPage(t, opts.Out)
 	for key, want := range map[string]bool{
 		"cart.Total":    true,  // it calls Item.cost, which changed
-		"receipt.Print": false, // cart.Total lies in another package
+		"receipt.Print": true,  // it calls cart.Total, whose reach changed
 		"cart.Order":    false, // a type keeps its own rule
 	} {
 		if got := d.Decls[key].Changed; got != want {
@@ -93,9 +93,9 @@ func TestBuildShop(t *testing.T) {
 		return false
 	}
 	for _, want := range []page.Link{
-		{Line: 10, Col: 14, Len: 4, File: "cart/cart.go", To: 1},           // the package cart
-		{Line: 10, Col: 46, Len: 7, URL: "https://pkg.go.dev/fmt#Sprintf"}, // a function of the standard library
-		{Line: 10, Col: 71, Len: 5, File: "cart/cart.go", To: 13},          // cart.Total
+		{Line: 10, Col: 14, Len: 4, File: "cart/cart.go", To: 1},                   // the package cart
+		{Line: 10, Col: 46, Len: 7, URL: "https://pkg.go.dev/fmt#Sprintf"},         // a function of the standard library
+		{Line: 10, Col: 71, Len: 5, File: "cart/cart.go", To: 13, Mark: "reached"}, // cart.Total
 	} {
 		for _, links := range [][]page.Link{d.Files["receipt/receipt.go"].BeforeLinks, d.Files["receipt/receipt.go"].AfterLinks} {
 			if !has(links, want) {
@@ -143,7 +143,7 @@ func TestShopInChrome(t *testing.T) {
 		"the status of the deep link":            `cart\.Total in cart/cart\.go:12 \(After\)`,
 		"the reach mark on cart.Total":           `href="#code/cart\.Total"><tspan[^>]*>cart\.Total</tspan><tspan class="reached">~</tspan>`,
 		"the highlight behind cart.Total":        `<rect [^>]*class="hl reached"`,
-		"no changed mark on receipt.Print":       `href="#code/receipt\.Print"><tspan[^>]*>receipt\.Print</tspan></a>`,
+		"the reach mark on receipt.Print":        `href="#code/receipt\.Print"><tspan[^>]*>receipt\.Print</tspan><tspan class="reached">~</tspan>`,
 		"the reach mark on the tab":              `Overview<span class="mark reached"[^>]*>~</span>`,
 		"the marked link from it.cost() to cost": `<a class="ident mark-changed"[^>]*data-file="cart/cart\.go" data-line="21"[^>]*>cost</a>`,
 		"the link from o.Items to the field":     `<a class="ident" href="#" data-file="cart/cart\.go" data-line="4" data-version="after">Items</a>`,

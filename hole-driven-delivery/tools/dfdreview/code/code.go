@@ -142,7 +142,7 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 }
 
 // markLinks gives each link of files inside a changed declaration the mark of the changed
-// functions and methods of its package that it names: MarkChanged when one of them changed
+// functions and methods of the module that it names: MarkChanged when one of them changed
 // in its own text, MarkReached when all of them changed through their reach only.
 func markLinks(files map[string][]Link, idx *Index) map[string][]Link {
 	for _, links := range files {
