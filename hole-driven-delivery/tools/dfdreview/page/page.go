@@ -15,7 +15,8 @@ type Data struct {
 	Base     string          `json:"base"` // the revision the page compares against, "" for none
 	Diagrams []Diagram       `json:"diagrams"`
 	Files    map[string]File `json:"files"`
-	Decls    map[string]Decl `json:"decls"`
+	Decls    map[string]Decl `json:"decls"` // the declarations and the methods, by key
+	Uses     Uses            `json:"uses"`
 	Terms    Versions        `json:"terms"`
 	Changed  []Changed       `json:"changed"`
 	Brief    string          `json:"brief"`
@@ -26,6 +27,21 @@ type Data struct {
 	Errors   []string        `json:"errors"` // the package errors of both versions
 	// The changed declarations and methods that no drawing covers.
 	Uncovered []Uncovered `json:"uncovered"`
+}
+
+// Uses holds the uses of each declaration and method in each version, by key.
+type Uses struct {
+	Before map[string][]Use `json:"before"`
+	After  map[string][]Use `json:"after"`
+}
+
+// Use is an identifier that names a declaration or a method: the key of the function, type,
+// variable, constant or method whose declaration holds it, and its file and line. The short
+// keys keep the page small.
+type Use struct {
+	In   string `json:"i,omitempty"`
+	File string `json:"f"`
+	Line int    `json:"l"`
 }
 
 // Uncovered is a changed declaration or method that no drawing covers, with the place of its
@@ -67,11 +83,12 @@ type Link struct {
 	File string `json:"f,omitempty"`
 	To   int    `json:"t,omitempty"`
 	URL  string `json:"u,omitempty"`
+	Key  string `json:"k,omitempty"` // the key of the declaration or method that it names
 	Mark string `json:"m,omitempty"` // "changed" or "reached" inside a changed declaration
 }
 
-// Decl is where a declaration sits in each version, nil for a version without it,
-// and whether the declaration differs between the versions.
+// Decl is where a declaration or a method sits in each version, nil for a version without
+// it, and whether it differs between the versions.
 type Decl struct {
 	Before  *Place `json:"before"`
 	After   *Place `json:"after"`
@@ -79,11 +96,12 @@ type Decl struct {
 	Reached bool   `json:"reached,omitempty"` // changed through its reach only
 }
 
-// Place is a declaration's file and lines.
+// Place is the file and lines of a declaration or a method, with its kind.
 type Place struct {
 	File  string `json:"file"`
 	Start int    `json:"start"`
 	End   int    `json:"end"`
+	Kind  string `json:"kind"` // "func", "type", "var", "const" or "method"
 }
 
 // Versions holds a map from each version, such as the vocabulary's definitions.

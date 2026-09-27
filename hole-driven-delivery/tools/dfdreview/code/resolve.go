@@ -35,8 +35,9 @@ type Link struct {
 	File           string   // the definition's file in the same version, relative to the code directory
 	To             int      // the definition's line in File
 	URL            string   // the definition's documentation, for one outside the code directory
+	Key            string   // the key of the declaration or method of the code directory that it names, "" for another object
 	Funcs          []string // the keys of the functions and methods of the module that it names; for an interface method, those of the implementations
-	In             string   // the key of the function or method whose declaration holds the identifier, "" outside one
+	In             string   // the key of the top-level function, type, variable, constant or method whose declaration holds the identifier, "" for an import
 	Mark           string   // MarkChanged or MarkReached for a link inside a changed declaration to a changed function or method, "" otherwise
 }
 

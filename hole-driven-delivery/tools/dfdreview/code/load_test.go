@@ -189,8 +189,8 @@ func TestLoadLinksIdentifiers(t *testing.T) {
 			{Line: 6, Col: 34, Len: 7, URL: "https://pkg.go.dev/strings", In: "p.A"},
 			{Line: 6, Col: 42, Len: 9, URL: "https://pkg.go.dev/strings#TrimSpace", In: "p.A"},
 			{Line: 6, Col: 52, Len: 1, File: "p/a.go", To: 6, In: "p.A"},
-			{Line: 6, Col: 57, Len: 1, File: "p/b.go", To: b, In: "p.A"},
-			{Line: 8, Col: 15, Len: 1, File: "p/b.go", To: b}, // after a two-byte letter, one UTF-16 unit
+			{Line: 6, Col: 57, Len: 1, File: "p/b.go", To: b, Key: "p.b", In: "p.A"},
+			{Line: 8, Col: 15, Len: 1, File: "p/b.go", To: b, Key: "p.b", In: "p.c"}, // after a two-byte letter, one UTF-16 unit
 			{Line: 10, Col: 12, Len: 7, URL: "https://pkg.go.dev/strings", In: "p.w"},
 			{Line: 10, Col: 20, Len: 7, URL: "https://pkg.go.dev/strings#Builder", In: "p.w"},
 			{Line: 10, Col: 31, Len: 2, File: "p/a.go", To: 10, In: "p.w"},
@@ -204,7 +204,10 @@ func TestLoadLinksIdentifiers(t *testing.T) {
 		t.Errorf("after:\n got %+v\nwant %+v", got, want)
 	}
 	// A package of the code directory opens at the package clause of its first file.
-	q := []code.Link{{Line: 5, Col: 9, Len: 1, File: "p/a.go", To: 1}, {Line: 5, Col: 11, Len: 1, File: "p/a.go", To: 6, Funcs: []string{"p.A"}}}
+	q := []code.Link{
+		{Line: 5, Col: 9, Len: 1, File: "p/a.go", To: 1, In: "q.d"},
+		{Line: 5, Col: 11, Len: 1, File: "p/a.go", To: 6, Key: "p.A", Funcs: []string{"p.A"}, In: "q.d"},
+	}
 	for _, v := range []*code.Resolution{res.Before, res.After} {
 		if got := v.Links["q/q.go"]; !reflect.DeepEqual(got, q) {
 			t.Errorf("q/q.go:\n got %+v\nwant %+v", got, q)
@@ -387,6 +390,42 @@ func TestReadReachesImplementationsInOtherPackages(t *testing.T) {
 	c := index(t, r, g.Dir)
 	if !c.Reached["use.Total"] || c.ChangedDecls["ptr.Circle.Area"] {
 		t.Errorf("use.Total reached: %v, ptr.Circle.Area changed: %v", c.Reached["use.Total"], c.ChangedDecls["ptr.Circle.Area"])
+	}
+}
+
+func TestReadListsUses(t *testing.T) {
+	g := gittest.New(t)
+	g.Write(map[string]string{
+		"go.mod":        goMod,
+		"docs/flow.dfd": "[1. Run\n (p.F)]\n",
+		"p/p.go":        pGo(1),
+		"p/box.go":      "package p\n\n// Box holds a T.\ntype Box struct{ T T }\n",
+		"p/p_test.go":   "package p\n\nimport \"testing\"\n\nfunc TestF(t *testing.T) {\n\tif F() != F() {\n\t\tt.Error(\"differs\")\n\t}\n}\n",
+		"q/q.go":        qGo,
+	})
+	r, err := repo.Open(g.Dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := index(t, r, g.Dir)
+	for key, want := range map[string][]code.Use{
+		// A method's receiver and a field's type use a type too.
+		"p.T": {{In: "p.Box", File: "p/box.go", Line: 4}, {In: "p.T.M", File: "p/p.go", Line: 10}, {In: "p.F", File: "p/p.go", Line: 19}},
+		// H calls T.M through I, and so uses I.M, T.M and U.M.
+		"p.T.M": {{In: "p.F", File: "p/p.go", Line: 19}, {In: "p.H", File: "p/p.go", Line: 25}},
+		"p.I.M": {{In: "p.H", File: "p/p.go", Line: 25}},
+		// Two calls on one line of a test make one use.
+		"p.F": {{In: "p.TestF", File: "p/p_test.go", Line: 6}, {In: "q.K", File: "q/q.go", Line: 6}},
+	} {
+		if got := c.AfterUses[key]; !reflect.DeepEqual(got, want) {
+			t.Errorf("uses of %s:\n got %+v\nwant %+v", key, got, want)
+		}
+	}
+	if got, want := c.AfterMethods["p.T.M"], (code.Place{File: "p/p.go", Start: 9, End: 10, Kind: "method"}); got != want {
+		t.Errorf("the place of p.T.M: %+v, want %+v", got, want)
+	}
+	if c.BeforeUses != nil {
+		t.Errorf("uses without a base: %v", c.BeforeUses)
 	}
 }
 

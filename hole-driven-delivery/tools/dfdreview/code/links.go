@@ -58,17 +58,20 @@ func firstClauses(root string, pkgs []*packages.Package) map[string]clause {
 
 // fileLinks returns the identifier links of file f of p, in order. module holds the paths of
 // the module's packages, methods the methods of their types, and lines the file's text.
+//
+// Example: it links strings.TrimSpace and b in p.A, and b in p.c, the key of each link's
+// declaration or method.
+//
+//	package p
+//
+//	func A(s string) string { return strings.TrimSpace(s) + b }
+//
+//	var c = "x" + b
 func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string]clause, module map[string]bool, methods []*types.Func, lines []string) []Link {
 	owners := fieldOwners(p.TypesInfo, f)
 	var out []Link
-	for _, d := range f.Decls {
-		in := ""
-		if fd, ok := d.(*ast.FuncDecl); ok {
-			if fn, ok := p.TypesInfo.Defs[fd.Name].(*types.Func); ok {
-				in = funcKey(fn)
-			}
-		}
-		ast.Inspect(d, func(n ast.Node) bool {
+	visit := func(n ast.Node, in string) {
+		ast.Inspect(n, func(n ast.Node) bool {
 			id, ok := n.(*ast.Ident)
 			if !ok {
 				return true
@@ -86,6 +89,9 @@ func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string
 			link.Col = utf16Len(lines[pos.Line-1][:pos.Column-1]) + 1
 			link.Len = utf16Len(id.Name)
 			link.In = in
+			if link.File != "" {
+				link.Key = objectKey(obj)
+			}
 			if fn, ok := obj.(*types.Func); ok && inModule(fn, module) {
 				for _, m := range implementations(fn.Origin(), methods) {
 					link.Funcs = append(link.Funcs, funcKey(m))
@@ -95,6 +101,20 @@ func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string
 			return true
 		})
 	}
+	for _, d := range f.Decls {
+		switch d := d.(type) {
+		case *ast.FuncDecl:
+			in := ""
+			if fn, ok := p.TypesInfo.Defs[d.Name].(*types.Func); ok {
+				in = funcKey(fn)
+			}
+			visit(d, in)
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				visit(spec, specKey(f.Name.Name, spec))
+			}
+		}
+	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Line != out[j].Line {
 			return out[i].Line < out[j].Line
@@ -102,6 +122,43 @@ func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string
 		return out[i].Col < out[j].Col
 	})
 	return out
+}
+
+// specKey returns the key of a top-level spec of package pkg.
+// A value spec with several names takes the first; an import has none.
+//
+// Example: it returns cart.Order for the first spec and cart.a for the second.
+//
+//	package cart
+//
+//	type Order struct{ Items []Item }
+//
+//	var a, b = f(), g()
+func specKey(pkg string, spec ast.Spec) string {
+	switch s := spec.(type) {
+	case *ast.TypeSpec:
+		return pkg + "." + s.Name.Name
+	case *ast.ValueSpec:
+		return pkg + "." + s.Names[0].Name
+	}
+	return ""
+}
+
+// objectKey returns the key of a top-level function, type, variable or constant, or of a
+// method of a named type. Any other object, such as a field or a local variable, has none.
+func objectKey(obj types.Object) string {
+	switch o := obj.(type) {
+	case *types.Func:
+		if recv := o.Signature().Recv(); recv != nil && typeName(recv.Type()) == "" {
+			return "" // a method of an interface without a name
+		}
+		return funcKey(o.Origin())
+	case *types.TypeName, *types.Var, *types.Const:
+		if obj.Parent() == obj.Pkg().Scope() {
+			return obj.Pkg().Name() + "." + obj.Name()
+		}
+	}
+	return ""
 }
 
 // definition returns where obj opens: a line of a file under root, the package clause of its

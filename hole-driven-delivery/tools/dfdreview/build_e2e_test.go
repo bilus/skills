@@ -94,9 +94,9 @@ func TestBuildShop(t *testing.T) {
 		return false
 	}
 	for _, want := range []page.Link{
-		{Line: 10, Col: 14, Len: 4, File: "cart/cart.go", To: 1},                   // the package cart
-		{Line: 10, Col: 46, Len: 7, URL: "https://pkg.go.dev/fmt#Sprintf"},         // a function of the standard library
-		{Line: 10, Col: 71, Len: 5, File: "cart/cart.go", To: 13, Mark: "reached"}, // cart.Total
+		{Line: 10, Col: 14, Len: 4, File: "cart/cart.go", To: 1},           // the package cart
+		{Line: 10, Col: 46, Len: 7, URL: "https://pkg.go.dev/fmt#Sprintf"}, // a function of the standard library
+		{Line: 10, Col: 71, Len: 5, File: "cart/cart.go", To: 13, Key: "cart.Total", Mark: "reached"},
 	} {
 		for _, links := range [][]page.Link{d.Files["receipt/receipt.go"].BeforeLinks, d.Files["receipt/receipt.go"].AfterLinks} {
 			if !has(links, want) {
@@ -105,7 +105,7 @@ func TestBuildShop(t *testing.T) {
 		}
 	}
 	// cost changed in its own text, and Total holds its call, so the link carries the mark.
-	if !has(d.Files["cart/cart.go"].AfterLinks, page.Link{Line: 16, Col: 13, Len: 4, File: "cart/cart.go", To: 21, Mark: "changed"}) {
+	if !has(d.Files["cart/cart.go"].AfterLinks, page.Link{Line: 16, Col: 13, Len: 4, File: "cart/cart.go", To: 21, Key: "cart.Item.cost", Mark: "changed"}) {
 		t.Errorf("it.cost() does not link to the method with its mark: %+v", d.Files["cart/cart.go"].AfterLinks)
 	}
 	if !d.Decls["cart.Total"].Reached {
@@ -118,20 +118,30 @@ func TestBuildShop(t *testing.T) {
 	if len(d.Errors) != 1 || !strings.HasPrefix(d.Errors[0], "working tree: example.com/shop/receipt: receipt/footer.go:4:") {
 		t.Errorf("package errors: %q", d.Errors)
 	}
+	// The search box finds methods too, and each declaration and method has its kind.
+	for key, want := range map[string]page.Place{
+		"cart.Total":     {File: "cart/cart.go", Start: 12, End: 19, Kind: "func"},
+		"cart.Item.cost": {File: "cart/cart.go", Start: 21, End: 21, Kind: "method"},
+		"cart.Order":     {File: "cart/cart.go", Start: 3, End: 4, Kind: "type"},
+		"receipt.Footer": {File: "receipt/footer.go", Start: 3, End: 4, Kind: "const"},
+	} {
+		if got := d.Decls[key].After; got == nil || *got != want {
+			t.Errorf("%s: %+v, want %+v", key, got, want)
+		}
+	}
+	// A test calls cart.Total, and so does receipt.Print, in both versions.
+	total := []page.Use{{In: "cart.TestTotal", File: "cart/cart_test.go", Line: 6}, {In: "receipt.Print", File: "receipt/receipt.go", Line: 10}}
+	for version, uses := range map[string]map[string][]page.Use{"before": d.Uses.Before, "after": d.Uses.After} {
+		if !reflect.DeepEqual(uses["cart.Total"], total) {
+			t.Errorf("%s: the uses of cart.Total: %+v, want %+v", version, uses["cart.Total"], total)
+		}
+	}
 }
 
 // TestShopInChrome renders the shop's page in headless Chrome, opened at cart.Total, and
 // checks the drawing's marks, the identifier links and the package errors in its DOM.
 func TestShopInChrome(t *testing.T) {
-	chrome := os.Getenv("CHROME")
-	if chrome == "" {
-		chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-	}
-	if _, err := os.Stat(chrome); err != nil {
-		if chrome, err = exec.LookPath("google-chrome"); err != nil {
-			t.Skip("no Chrome; set CHROME to one")
-		}
-	}
+	chrome := chromePath(t)
 	dfd := os.Getenv("DFD")
 	if dfd == "" {
 		dfd = "dfd"
@@ -160,6 +170,22 @@ func TestShopInChrome(t *testing.T) {
 			t.Errorf("the page lacks %s: %s", name, pattern)
 		}
 	}
+}
+
+// chromePath returns the Chrome that CHROME names, or the one of macOS, or google-chrome on the
+// PATH. Without one, it skips the test.
+func chromePath(t *testing.T) string {
+	t.Helper()
+	chrome := os.Getenv("CHROME")
+	if chrome == "" {
+		chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+	}
+	if _, err := os.Stat(chrome); err != nil {
+		if chrome, err = exec.LookPath("google-chrome"); err != nil {
+			t.Skip("no Chrome; set CHROME to one")
+		}
+	}
+	return chrome
 }
 
 // dumpDOM returns the DOM of the page at url after headless Chrome loads it. Chrome can stay
@@ -199,15 +225,7 @@ func dumpDOM(t *testing.T, chrome, url string) string {
 // TestShopPlaceInChrome opens the shop's page at a place that its URL hash names, as the
 // page writes it into the browser's history, and checks the place in headless Chrome's DOM.
 func TestShopPlaceInChrome(t *testing.T) {
-	chrome := os.Getenv("CHROME")
-	if chrome == "" {
-		chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-	}
-	if _, err := os.Stat(chrome); err != nil {
-		if chrome, err = exec.LookPath("google-chrome"); err != nil {
-			t.Skip("no Chrome; set CHROME to one")
-		}
-	}
+	chrome := chromePath(t)
 	dfd := filepath.Join(t.TempDir(), "dfd")
 	if err := os.WriteFile(dfd, []byte(echo), 0o755); err != nil {
 		t.Fatal(err)
@@ -225,5 +243,98 @@ func TestShopPlaceInChrome(t *testing.T) {
 		if !regexp.MustCompile(pattern).MatchString(dom) {
 			t.Errorf("the page lacks %s: %s", name, pattern)
 		}
+	}
+}
+
+// actions drive a page in the tests. type puts text into the search box, key presses a key
+// in it, and click clicks the first element that a selector matches. Each event can be
+// cancelled, as a user's can.
+const actions = `<script>
+const type = (text) => {
+  const q = document.getElementById("search");
+  q.value = text;
+  q.dispatchEvent(new Event("input", { bubbles: true }));
+};
+const key = (name) => document.getElementById("search").dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true }));
+const click = (selector) => document.querySelector(selector).dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+`
+
+// driven writes a copy of the page at path that runs script after the page's own script, and
+// returns the copy's path. The copy's body records the URL hash at the end, in data-hash.
+func driven(t *testing.T, path, script string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The page's data escapes every "<", so the first "</body>" ends the body.
+	run := actions + script + "\ndocument.body.dataset.hash = location.hash;\n</script>\n</body>"
+	out := filepath.Join(t.TempDir(), "index.html")
+	if err := os.WriteFile(out, []byte(strings.Replace(string(b), "</body>", run, 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// TestShopSearchInChrome drives the search box and the "Show references" link of the shop's
+// page in headless Chrome, and checks the DOM after each series of actions.
+func TestShopSearchInChrome(t *testing.T) {
+	chrome := chromePath(t)
+	dfd := filepath.Join(t.TempDir(), "dfd")
+	if err := os.WriteFile(dfd, []byte(echo), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	opts := shopPage(t, dfd)
+	if err := dfdreview.Build(opts); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, hash, script string
+		want               map[string]string
+	}{
+		{
+			name:   "typing part of a name",
+			script: `type("t");`,
+			want: map[string]string{
+				"the open list": `<ul id="search-results" role="listbox" aria-label="[^"]*">`,
+				// Every key holds a "t", but only one name starts with it.
+				"the name that starts with the text, first": `id="result-0" role="option" data-key="cart\.Total"[^>]*>` +
+					`<span class="kind">func</span><span>cart\.Total</span><span class="mark reached"[^>]*>~</span><span class="where">cart/cart\.go:12</span>`,
+				"the other keys, in order": `id="result-1" role="option" data-key="cart\.Item".*id="result-2" role="option" data-key="cart\.Item\.cost"`,
+			},
+		},
+		{
+			name:   "choosing a method and showing its references",
+			script: `type("cost"); key("Enter"); click("#refs-link");`,
+			want: map[string]string{
+				"the status of the method": `cart\.Item\.cost in cart/cart\.go:21 \(After\)`,
+				"the closed search list":   `<ul id="search-results" role="listbox" aria-label="[^"]*" hidden="">`,
+				"the list's heading":       `<p>References to cart\.Item\.cost in the After version:</p>`,
+				"the call in cart.Total": `<li><a href="#" data-key="cart\.Total" data-file="cart/cart\.go" data-line="16" data-version="after">cart\.Total</a>` +
+					`<span class="where">cart/cart\.go:<a [^>]*data-line="16"[^>]*>16</a></span></li>`,
+				"the link to close the list": `aria-expanded="true" aria-controls="refs">Hide references</button>`,
+			},
+		},
+		{
+			name:   "following a reference",
+			hash:   "#code/cart.Total",
+			script: `click("#refs-link"); click("#refs a[data-key='receipt.Print']");`,
+			want: map[string]string{
+				"the status of the calling function": `receipt\.Print in receipt/receipt\.go:10 \(After\)`,
+				"the selected line":                  `<div class="line sel" id="L10">`,
+				"the closed list":                    `<div id="refs" hidden="">`,
+				"the link, ready again":              `aria-expanded="false" aria-controls="refs">Show references</button>`,
+				"the place in the history":           `data-hash="#f=receipt/receipt\.go&amp;fv=after&amp;k=receipt\.Print&amp;l=10"`,
+			},
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dom := dumpDOM(t, chrome, "file://"+driven(t, opts.Out, c.script)+c.hash)
+			for name, pattern := range c.want {
+				if !regexp.MustCompile(pattern).MatchString(dom) {
+					t.Errorf("the page lacks %s: %s", name, pattern)
+				}
+			}
+		})
 	}
 }

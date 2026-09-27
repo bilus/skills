@@ -97,18 +97,24 @@ func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index)
 				BeforeLinks: links(c.BeforeLinks[path]), AfterLinks: links(c.AfterLinks[path])}
 		}
 	}
-	for key, pl := range c.Before {
-		decl := data.Decls[key]
-		decl.Before = &page.Place{File: pl.File, Start: pl.Start, End: pl.End}
-		decl.Changed, decl.Reached = c.ChangedDecls[key], c.Reached[key]
-		data.Decls[key] = decl
+	decls := func(places map[string]code.Place, after bool) {
+		for key, pl := range places {
+			decl := data.Decls[key]
+			p := &page.Place{File: pl.File, Start: pl.Start, End: pl.End, Kind: pl.Kind}
+			if after {
+				decl.After = p
+			} else {
+				decl.Before = p
+			}
+			decl.Changed, decl.Reached = c.ChangedDecls[key], c.Reached[key]
+			data.Decls[key] = decl
+		}
 	}
-	for key, pl := range c.After {
-		decl := data.Decls[key]
-		decl.After = &page.Place{File: pl.File, Start: pl.Start, End: pl.End}
-		decl.Changed, decl.Reached = c.ChangedDecls[key], c.Reached[key]
-		data.Decls[key] = decl
-	}
+	decls(c.Before, false)
+	decls(c.BeforeMethods, false)
+	decls(c.After, true)
+	decls(c.AfterMethods, true)
+	data.Uses = page.Uses{Before: uses(c.BeforeUses), After: uses(c.AfterUses)}
 	if err := os.MkdirAll(filepath.Dir(opts.Out), 0o755); err != nil {
 		return err
 	}
@@ -149,7 +155,18 @@ func links(ls []code.Link) []page.Link {
 	}
 	out := make([]page.Link, 0, len(ls))
 	for _, l := range ls {
-		out = append(out, page.Link{Line: l.Line, Col: l.Col, Len: l.Len, File: l.File, To: l.To, URL: l.URL, Mark: l.Mark})
+		out = append(out, page.Link{Line: l.Line, Col: l.Col, Len: l.Len, File: l.File, To: l.To, URL: l.URL, Key: l.Key, Mark: l.Mark})
+	}
+	return out
+}
+
+// uses turns the uses of each declaration and method into the page's form.
+func uses(byKey map[string][]code.Use) map[string][]page.Use {
+	out := make(map[string][]page.Use, len(byKey))
+	for key, us := range byKey {
+		for _, u := range us {
+			out[key] = append(out[key], page.Use{In: u.In, File: u.File, Line: u.Line})
+		}
 	}
 	return out
 }

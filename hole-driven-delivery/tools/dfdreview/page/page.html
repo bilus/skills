@@ -30,9 +30,25 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
 body { background: var(--paper); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-header { padding: 10px 16px; border-bottom: 1px solid var(--rule); background: var(--panel); }
+header { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 10px 16px; border-bottom: 1px solid var(--rule); background: var(--panel); }
 header h1 { font-size: 16px; margin: 0; }
 header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+#search-box { position: relative; flex: 0 1 300px; }
+#search { width: 100%; font: 13px system-ui, -apple-system, "Segoe UI", sans-serif; padding: 5px 10px;
+  border: 1px solid var(--rule); border-radius: 6px; background: var(--paper); color: var(--ink); }
+#search:focus { outline: none; border-color: var(--sel-rule); }
+#search-results { position: absolute; top: calc(100% + 4px); right: 0; z-index: 10; width: min(560px, calc(100vw - 32px));
+  max-height: 60vh; overflow: auto; margin: 0; padding: 4px 0; list-style: none; background: var(--panel);
+  border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); }
+#search-results li { display: flex; align-items: baseline; gap: 8px; padding: 3px 10px; cursor: pointer; white-space: nowrap;
+  font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+#search-results li.active { background: var(--sel); }
+#search-results .kind { flex: 0 0 4.5em; color: var(--muted); font-size: 11.5px; }
+#search-results .mark { color: var(--del); font-weight: 700; }
+#search-results .mark.reached { color: var(--amber); }
+#search-results .where { margin-left: auto; padding-left: 16px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+#search-results li.note { cursor: default; color: var(--muted); font: 12.5px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
 main { display: grid; grid-template-columns: minmax(0, 1fr) 7px var(--code-width, 40%); height: calc(100% - 58px); }
 #left { overflow: auto; padding: 12px 16px 32px; }
 #splitter { cursor: col-resize; background: var(--rule); border-left: 3px solid var(--paper); border-right: 3px solid var(--panel); }
@@ -83,7 +99,18 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
   border-radius: 6px; padding: 8px 10px; overflow-x: auto; }
 .muted { color: var(--muted); }
 #code-head { position: sticky; top: 0; z-index: 1; background: var(--panel); border-bottom: 1px solid var(--rule); padding: 8px 12px 0; }
-#code-status { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); overflow-wrap: anywhere; margin-bottom: 6px; }
+#code-line { position: relative; margin-bottom: 6px; }
+#code-status { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); overflow-wrap: anywhere; }
+#refs-link { margin-left: 10px; padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer;
+  font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; text-decoration: underline; }
+#refs { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 2; max-height: 50vh; overflow: auto; padding: 6px 10px;
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); }
+#refs p { margin: 0 0 4px; color: var(--muted); font-size: 12px; }
+#refs ul { list-style: none; margin: 0; padding: 0; font: 12.5px/1.8 ui-monospace, SFMono-Regular, Menlo, monospace; }
+#refs li { display: flex; flex-wrap: wrap; column-gap: 12px; }
+#refs a { color: var(--accent); text-decoration: none; }
+#refs a:hover, #refs a:focus { text-decoration: underline; }
+#refs .where { color: var(--muted); }
 #code-body { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 #code-body .empty { padding: 20px; color: var(--muted); font: 14px/1.5 system-ui, sans-serif; }
 .line { display: flex; white-space: pre; }
@@ -122,8 +149,15 @@ ul.errors li { white-space: pre-wrap; }
 </head>
 <body>
 <header>
-  <h1 id="title"></h1>
-  <p id="subtitle"></p>
+  <div>
+    <h1 id="title"></h1>
+    <p id="subtitle"></p>
+  </div>
+  <div id="search-box">
+    <input id="search" type="search" placeholder="Search declarations and methods" autocomplete="off" spellcheck="false"
+      role="combobox" aria-label="Search the declarations and methods" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
+    <ul id="search-results" role="listbox" aria-label="Matching declarations and methods" hidden></ul>
+  </div>
 </header>
 <main>
   <section id="left">
@@ -137,7 +171,9 @@ ul.errors li { white-space: pre-wrap; }
   <div id="splitter" role="separator" aria-orientation="vertical" aria-label="Resize the code panel" tabindex="0" title="Drag to resize; double-click to reset"></div>
   <aside id="code" aria-label="Code">
     <div id="code-head">
-      <div id="code-status">No file open.</div>
+      <div id="code-line"><span id="code-status">No file open.</span><button type="button" id="refs-link" aria-expanded="false" aria-controls="refs" hidden>Show references</button>
+        <div id="refs" hidden></div>
+      </div>
       <div id="code-views" class="tabs small" role="tablist" aria-label="Versions"></div>
     </div>
     <div id="code-body"><div class="empty">Click a function or type name in a box to open its source here, or a file under "Changed files" to see its diff.</div></div>
@@ -155,6 +191,8 @@ ul.errors li { white-space: pre-wrap; }
   const state = { diagram: 0, view: {}, file: null, key: null, line: null, fileView: "after" };
   const emptyCode = $("code-body").innerHTML;
   const emptyStatus = $("code-status").innerHTML;
+  const refsLink = $("refs-link");
+  const refs = $("refs");
 
   $("title").textContent = data.title;
   $("subtitle").textContent = data.base
@@ -227,7 +265,7 @@ ul.errors li { white-space: pre-wrap; }
       a.title = marks[u.mark].tip + data.base;
       a.addEventListener("click", (e) => {
         e.preventDefault();
-        navigate(() => openDefinition({ f: u.file, t: u.line }, u.version));
+        navigate(() => showDecl(u.key, u.version));
       });
       const where = document.createElement("span");
       where.className = "muted";
@@ -382,9 +420,12 @@ ul.errors li { white-space: pre-wrap; }
     return i < 0 ? "" : number.slice(0, i);
   }
 
-  // The code panel.
+  // The code panel. status shows a message above the code and hides the "Show references"
+  // link, which renderFile shows again for a declaration or a method.
   function status(html) {
     $("code-status").innerHTML = html;
+    refsLink.hidden = true;
+    closeRefs();
   }
 
   function placeOf(key, version) {
@@ -508,6 +549,9 @@ ul.errors li { white-space: pre-wrap; }
         a.rel = "noopener";
       } else {
         a.href = "#";
+        if (link.k) {
+          a.dataset.key = link.k;
+        }
         a.dataset.file = link.f;
         a.dataset.line = link.t;
         a.dataset.version = version;
@@ -518,14 +562,15 @@ ul.errors li { white-space: pre-wrap; }
     return t.innerHTML;
   }
 
-  // openDefinition opens a link's definition: its file in the same version at its line, or its URL.
+  // openDefinition opens a link's definition: its file in the same version at its line, with
+  // the key of its declaration or method, or its URL.
   function openDefinition(link, version) {
     if (link.u) {
       window.open(link.u, "_blank", "noopener");
       return;
     }
     state.file = link.f;
-    state.key = null;
+    state.key = link.k || null;
     state.line = link.t;
     state.fileView = version;
     renderFile();
@@ -548,15 +593,18 @@ ul.errors li { white-space: pre-wrap; }
       renderFile();
       record(false);
     });
-    let where = state.key && state.fileView !== "diff" ? placeOf(state.key, state.fileView) : null;
-    if (state.line && state.fileView !== "diff") {
-      where = { start: state.line, end: state.line };
+    // The selection: the line that a link opened, else the declaration of the key in this file.
+    let where = null;
+    if (state.fileView !== "diff") {
+      const decl = state.key ? placeOf(state.key, state.fileView) : null;
+      where = state.line ? { start: state.line, end: state.line } : decl && decl.file === state.file ? decl : null;
     }
     let label = esc(state.file) + (state.line ? ":" + state.line : "") + " (" + viewNames[state.fileView] + ")";
     if (state.key) {
       label = esc(state.key) + (where ? " in " + esc(state.file) + ":" + where.start : " in " + esc(state.file)) + " (" + viewNames[state.fileView] + ")";
     }
     status(label);
+    refsLink.hidden = !state.key;
     const out = [];
     if (state.fileView === "diff") {
       f.diff.replace(/\n$/, "").split("\n").forEach((ln, i) => {
@@ -711,7 +759,229 @@ ul.errors li { white-space: pre-wrap; }
     const a = e.target.closest("a.ident");
     if (a && a.dataset.file) {
       e.preventDefault();
-      navigate(() => openDefinition({ f: a.dataset.file, t: Number(a.dataset.line) }, a.dataset.version));
+      navigate(() => openDefinition({ f: a.dataset.file, t: Number(a.dataset.line), k: a.dataset.key }, a.dataset.version));
+    }
+  });
+
+  // The search box lists the declarations and methods whose keys match its text, and opens
+  // the chosen one in the code panel.
+  const search = $("search");
+  const results = $("search-results");
+  const shown = 50; // the most results that the list shows
+  let found = []; // the keys that match the text, best first
+  let active = -1; // the index of the highlighted result, -1 for none
+
+  // matching returns the keys of the declarations and methods that match query, best first:
+  // those named query, then those whose names start with it, then those whose keys hold it.
+  function matching(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      return [];
+    }
+    const scored = [];
+    Object.keys(data.decls).forEach((key) => {
+      const k = key.toLowerCase();
+      const name = k.slice(k.lastIndexOf(".") + 1);
+      const score = name === q ? 0 : name.startsWith(q) ? 1 : k.includes(q) ? 2 : -1;
+      if (score >= 0) {
+        scored.push({ key, score });
+      }
+    });
+    scored.sort((a, b) => a.score - b.score || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    return scored.map((s) => s.key);
+  }
+
+  function showResults() {
+    found = matching(search.value);
+    results.replaceChildren();
+    found.slice(0, shown).forEach((key, i) => {
+      const decl = data.decls[key];
+      const version = decl.after ? "after" : "before";
+      const where = decl[version];
+      const li = document.createElement("li");
+      li.id = "result-" + i;
+      li.setAttribute("role", "option");
+      li.dataset.key = key;
+      li.dataset.index = i;
+      const kind = document.createElement("span");
+      kind.className = "kind";
+      kind.textContent = where.kind;
+      const name = document.createElement("span");
+      name.textContent = key;
+      li.append(kind, name);
+      const m = markOf(decl);
+      if (m) {
+        const star = document.createElement("span");
+        star.className = "mark " + m;
+        star.textContent = marks[m].glyph;
+        star.title = marks[m].tip + data.base;
+        li.append(star);
+      }
+      const place = document.createElement("span");
+      place.className = "where";
+      place.textContent = where.file + ":" + where.start + (version === "before" ? " (Before)" : "");
+      li.append(place);
+      results.appendChild(li);
+    });
+    const typed = search.value.trim() !== "";
+    const note = found.length > shown ? found.length - shown + " more; type more of the name to narrow the list."
+      : typed && !found.length ? "No declaration or method matches." : "";
+    if (note) {
+      const li = document.createElement("li");
+      li.className = "note";
+      li.textContent = note;
+      results.appendChild(li);
+    }
+    results.hidden = !typed;
+    search.setAttribute("aria-expanded", String(typed));
+    setActive(found.length ? 0 : -1);
+  }
+
+  function setActive(i) {
+    active = i;
+    results.querySelectorAll("li[data-key]").forEach((li) => {
+      const on = Number(li.dataset.index) === i;
+      li.classList.toggle("active", on);
+      li.setAttribute("aria-selected", String(on));
+      if (on) {
+        li.scrollIntoView({ block: "nearest" });
+      }
+    });
+    if (i >= 0) {
+      search.setAttribute("aria-activedescendant", "result-" + i);
+    } else {
+      search.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  function closeResults() {
+    results.hidden = true;
+    search.setAttribute("aria-expanded", "false");
+  }
+
+  // choose opens a declaration or method in the version of the open file.
+  function choose(key) {
+    closeResults();
+    navigate(() => showDecl(key, state.fileView === "before" ? "before" : "after"));
+  }
+
+  search.addEventListener("input", showResults);
+  search.addEventListener("focus", () => {
+    if (search.value.trim()) {
+      showResults();
+    }
+  });
+  search.addEventListener("blur", closeResults);
+  search.addEventListener("keydown", (e) => {
+    const n = Math.min(found.length, shown);
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && n) {
+      e.preventDefault();
+      if (results.hidden) {
+        showResults();
+      } else {
+        setActive((active + (e.key === "ArrowDown" ? 1 : n - 1)) % n);
+      }
+    } else if (e.key === "Enter" && !results.hidden && active >= 0) {
+      e.preventDefault();
+      choose(found[active]);
+    } else if (e.key === "Escape" && !results.hidden) {
+      e.preventDefault();
+      closeResults();
+    }
+  });
+  // A press on the list keeps the focus in the box, so the list stays open until the click.
+  results.addEventListener("mousedown", (e) => e.preventDefault());
+  results.addEventListener("mousemove", (e) => {
+    const li = e.target.closest("li[data-key]");
+    if (li && Number(li.dataset.index) !== active) {
+      setActive(Number(li.dataset.index));
+    }
+  });
+  results.addEventListener("click", (e) => {
+    const li = e.target.closest("li[data-key]");
+    if (li) {
+      choose(li.dataset.key);
+    }
+  });
+
+  // The "Show references" link lists the uses of the open declaration or method in the open
+  // version, one line for each declaration or method that holds some, with their lines.
+  function openRefs() {
+    const version = state.fileView === "before" ? "before" : "after";
+    const list = ((data.uses || {})[version] || {})[state.key] || [];
+    const groups = new Map();
+    list.forEach((u) => {
+      const id = (u.i || "") + " " + u.f;
+      if (!groups.has(id)) {
+        groups.set(id, { key: u.i || "", file: u.f, lines: [] });
+      }
+      groups.get(id).lines.push(u.l);
+    });
+    const head = document.createElement("p");
+    head.textContent = (list.length ? "References to " : "No references to ") + state.key + " in the " + viewNames[version] +
+      " version" + (list.length ? ":" : ".");
+    refs.replaceChildren(head);
+    if (list.length) {
+      const ul = document.createElement("ul");
+      groups.forEach((g) => {
+        const li = document.createElement("li");
+        const where = document.createElement("span");
+        where.className = "where";
+        where.append(g.file + ":");
+        g.lines.forEach((line, i) => {
+          if (i) {
+            where.append(", ");
+          }
+          where.append(refLink(String(line), g, line, version));
+        });
+        li.append(refLink(g.key || g.file, g, g.lines[0], version), where);
+        ul.appendChild(li);
+      });
+      refs.appendChild(ul);
+    }
+    refs.hidden = false;
+    refsLink.textContent = "Hide references";
+    refsLink.setAttribute("aria-expanded", "true");
+  }
+
+  // refLink returns a link to a line of a group's file, which opens with the group's key.
+  function refLink(text, group, line, version) {
+    const a = document.createElement("a");
+    a.href = "#";
+    a.textContent = text;
+    if (group.key) {
+      a.dataset.key = group.key;
+    }
+    a.dataset.file = group.file;
+    a.dataset.line = line;
+    a.dataset.version = version;
+    return a;
+  }
+
+  function closeRefs() {
+    refs.hidden = true;
+    refs.replaceChildren();
+    refsLink.textContent = "Show references";
+    refsLink.setAttribute("aria-expanded", "false");
+  }
+
+  refsLink.addEventListener("click", () => (refs.hidden ? openRefs() : closeRefs()));
+  refs.addEventListener("click", (e) => {
+    const a = e.target.closest("a[data-file]");
+    if (a) {
+      e.preventDefault();
+      navigate(() => openDefinition({ f: a.dataset.file, t: Number(a.dataset.line), k: a.dataset.key }, a.dataset.version));
+    }
+  });
+  // A click elsewhere, or Escape, closes the list.
+  document.addEventListener("click", (e) => {
+    if (!refs.hidden && !e.target.closest("#refs, #refs-link")) {
+      closeRefs();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !refs.hidden) {
+      closeRefs();
     }
   });
 

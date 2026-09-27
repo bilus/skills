@@ -18,18 +18,28 @@ import (
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/repo"
 )
 
-// Index is the code of a change in both versions: the declarations with the changed ones,
-// the files the page shows with their identifier links, and the package errors.
+// Index is the code of a change in both versions: the declarations and methods with the changed
+// ones, the files the page shows with their identifier links, and the package errors.
 type Index struct {
-	Before, After           map[string]Place     // declarations by key, such as "analyze.sumTypes"
-	ChangedDecls            map[string]bool      // the keys of the changed declarations and methods
-	Reached                 map[string]bool      // the keys of those changed through their reach only
-	Std                     map[string]bool      // the standard library's import paths
-	Files                   map[string]repo.Pair // the files the page shows, by path
-	Changed                 []repo.Change
-	BeforeLinks, AfterLinks map[string][]Link // the identifier links of each Go file, by path
-	Errors                  []string          // the package errors of both versions
-	Uncovered               []Uncovered       // the changed declarations and methods that no drawing covers, by key
+	Before, After               map[string]Place     // declarations by key, such as "analyze.sumTypes"
+	BeforeMethods, AfterMethods map[string]Place     // methods by key, such as "render.renderer.text"
+	ChangedDecls                map[string]bool      // the keys of the changed declarations and methods
+	Reached                     map[string]bool      // the keys of those changed through their reach only
+	Std                         map[string]bool      // the standard library's import paths
+	Files                       map[string]repo.Pair // the files the page shows, by path
+	Changed                     []repo.Change
+	BeforeLinks, AfterLinks     map[string][]Link // the identifier links of each Go file, by path
+	BeforeUses, AfterUses       map[string][]Use  // the uses of each declaration and method, by key
+	Errors                      []string          // the package errors of both versions
+	Uncovered                   []Uncovered       // the changed declarations and methods that no drawing covers, by key
+}
+
+// Use is an identifier that names a declaration or a method: its line, and the key of the
+// function, type, variable, constant or method whose declaration holds it.
+type Use struct {
+	In   string // "" for an import
+	File string
+	Line int
 }
 
 // Uncovered is a changed declaration or method that no drawing covers: no drawing links it, and
@@ -41,17 +51,18 @@ type Uncovered struct {
 	Version string // "after", or "before" for one that the working tree removed
 }
 
-// Place is where a declaration sits, its doc comment included.
+// Place is where a declaration or a method sits, its doc comment included, with its kind.
 type Place struct {
 	File       string
-	Start, End int // lines, from 1
+	Start, End int    // lines, from 1
+	Kind       string // "func", "type", "var" or "const" for a declaration, "method" for a method
 }
 
-// Read loads the module with its types, then indexes the declarations, the changed files
-// and the identifier links of both versions. With a module, the page shows every Go file
-// of both versions, test files included; without one, the files of the declarations that
-// the boxes and the type comments name. Every changed file shows too. Without a base,
-// ChangedDecls is empty.
+// Read loads the module with its types, then indexes the declarations and methods, the
+// changed files, and the identifier links and uses of both versions. With a module, the page
+// shows every Go file of both versions, test files included; without one, the files of the
+// declarations that the boxes and the type comments name, and no uses. Every changed file
+// shows too. Without a base, ChangedDecls is empty.
 func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	res, err := Load(r)
 	if err != nil {
@@ -68,16 +79,14 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	if idx.After, err = Declarations(after); err != nil {
 		return nil, err
 	}
+	if idx.BeforeMethods, err = methodPlaces(before); err != nil {
+		return nil, fmt.Errorf("at the base: %w", err)
+	}
+	if idx.AfterMethods, err = methodPlaces(after); err != nil {
+		return nil, err
+	}
 	if r.Base() != "" {
-		beforeMethods, err := methodPlaces(before)
-		if err != nil {
-			return nil, fmt.Errorf("at the base: %w", err)
-		}
-		afterMethods, err := methodPlaces(after)
-		if err != nil {
-			return nil, err
-		}
-		beforeAll, afterAll := union(idx.Before, beforeMethods), union(idx.After, afterMethods)
+		beforeAll, afterAll := union(idx.Before, idx.BeforeMethods), union(idx.After, idx.AfterMethods)
 		idx.ChangedDecls = changedDecls(before, after, beforeAll, afterAll)
 		var calls map[string][]string
 		if res != nil && res.After != nil {
@@ -137,6 +146,7 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 				idx.Files[file] = p
 			}
 			idx.BeforeLinks = markLinks(res.Before.Links, idx)
+			idx.BeforeUses = uses(idx.BeforeLinks)
 		}
 		if res.After != nil {
 			for file, text := range res.After.Files {
@@ -145,6 +155,7 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 				idx.Files[file] = p
 			}
 			idx.AfterLinks = markLinks(res.After.Links, idx)
+			idx.AfterUses = uses(idx.AfterLinks)
 		}
 		idx.Errors = res.Errors
 		// A version without a resolution keeps the texts from git.
@@ -182,6 +193,37 @@ func markLinks(files map[string][]Link, idx *Index) map[string][]Link {
 		}
 	}
 	return files
+}
+
+// uses returns the uses of each declaration and method in files, the identifier links of each
+// Go file by path, in order of file and line: the links that name it by their key, or as one
+// of their functions, which a call of an interface method adds for each implementation.
+func uses(files map[string][]Link) map[string][]Use {
+	out := map[string][]Use{}
+	for file, links := range files {
+		for _, l := range links {
+			for _, key := range append([]string{l.Key}, l.Funcs...) {
+				us := out[key]
+				u := Use{In: l.In, File: file, Line: l.Line}
+				// A key can repeat in a link, and a line can hold several links to it.
+				if key != "" && (len(us) == 0 || us[len(us)-1] != u) {
+					out[key] = append(us, u)
+				}
+			}
+		}
+	}
+	for _, us := range out {
+		sort.Slice(us, func(i, j int) bool {
+			if us[i].File != us[j].File {
+				return us[i].File < us[j].File
+			}
+			if us[i].Line != us[j].Line {
+				return us[i].Line < us[j].Line
+			}
+			return us[i].In < us[j].In
+		})
+	}
+	return out
 }
 
 // linked returns the keys of the declarations that the diagrams link in either version: their
@@ -321,6 +363,15 @@ var qualifiedType = regexp.MustCompile(`\b[a-z][a-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]
 
 // methodPlaces returns the places of the methods of files, doc comments included, keyed like
 // render.renderer.text. The first file in path order wins a shared key.
+//
+// Example: it places render.renderer.text on lines 3 to 6, with the kind method.
+//
+//	package render
+//
+//	// text returns the source between two positions.
+//	func (r *renderer) text(from, to token.Pos) string {
+//		return r.src[from:to]
+//	}
 func methodPlaces(files map[string]string) (map[string]Place, error) {
 	paths := make([]string, 0, len(files))
 	for p := range files {
@@ -348,7 +399,7 @@ func methodPlaces(files map[string]string) (map[string]Place, error) {
 			if fd.Doc != nil {
 				start = fd.Doc.Pos()
 			}
-			out[key] = Place{File: p, Start: fset.PositionFor(start, false).Line, End: fset.PositionFor(fd.End(), false).Line}
+			out[key] = Place{File: p, Start: fset.PositionFor(start, false).Line, End: fset.PositionFor(fd.End(), false).Line, Kind: "method"}
 		}
 	}
 	return out, nil
@@ -383,6 +434,20 @@ func Key(ref dfdtext.Reference) string {
 // Declarations returns the top-level declarations of files, keyed like "analyze.sumTypes".
 // The key joins the package name and the identifier; the first file in path order wins.
 // Methods are left out, since a box names a method by its type.
+//
+// Example: it places alpha.F on lines 3 to 4 with the kind func, and alpha.T on lines 7 to
+// 8 and alpha.U on line 9 with the kind type.
+//
+//	package alpha
+//
+//	// F does x.
+//	func F() {}
+//
+//	type (
+//		// T is t.
+//		T int
+//		U string
+//	)
 func Declarations(files map[string]string) (map[string]Place, error) {
 	paths := make([]string, 0, len(files))
 	for p := range files {
@@ -396,20 +461,20 @@ func Declarations(files map[string]string) (map[string]Place, error) {
 		if err != nil {
 			return nil, err
 		}
-		add := func(name string, start, end token.Pos, doc *ast.CommentGroup) {
+		add := func(name, kind string, start, end token.Pos, doc *ast.CommentGroup) {
 			if doc != nil {
 				start = doc.Pos()
 			}
 			key := f.Name.Name + "." + name
 			if _, taken := decls[key]; !taken {
-				decls[key] = Place{File: p, Start: fset.Position(start).Line, End: fset.Position(end).Line}
+				decls[key] = Place{File: p, Start: fset.Position(start).Line, End: fset.Position(end).Line, Kind: kind}
 			}
 		}
 		for _, d := range f.Decls {
 			switch d := d.(type) {
 			case *ast.FuncDecl:
 				if d.Recv == nil {
-					add(d.Name.Name, d.Pos(), d.End(), d.Doc)
+					add(d.Name.Name, "func", d.Pos(), d.End(), d.Doc)
 				}
 			case *ast.GenDecl:
 				for _, spec := range d.Specs {
@@ -429,7 +494,7 @@ func Declarations(files map[string]string) (map[string]Place, error) {
 						start, end, doc = d.Pos(), d.End(), d.Doc
 					}
 					for _, n := range names {
-						add(n.Name, start, end, doc)
+						add(n.Name, d.Tok.String(), start, end, doc)
 					}
 				}
 			}

@@ -23,12 +23,12 @@ func TestDeclarations(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]code.Place{
-		"alpha.F": {File: "a/a.go", Start: 3, End: 4},
-		"alpha.T": {File: "a/a.go", Start: 7, End: 8},
-		"alpha.U": {File: "a/a.go", Start: 9, End: 9},
-		"alpha.V": {File: "a/a.go", Start: 12, End: 12},
-		"alpha.C": {File: "a/a.go", Start: 14, End: 14},
-		"beta.F":  {File: "b/b.go", Start: 3, End: 3},
+		"alpha.F": {File: "a/a.go", Start: 3, End: 4, Kind: "func"},
+		"alpha.T": {File: "a/a.go", Start: 7, End: 8, Kind: "type"},
+		"alpha.U": {File: "a/a.go", Start: 9, End: 9, Kind: "type"},
+		"alpha.V": {File: "a/a.go", Start: 12, End: 12, Kind: "var"},
+		"alpha.C": {File: "a/a.go", Start: 14, End: 14, Kind: "const"},
+		"beta.F":  {File: "b/b.go", Start: 3, End: 3, Kind: "func"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("declarations = %v\nwant           %v", got, want)

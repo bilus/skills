@@ -150,9 +150,9 @@ func TestBuildLinksIdentifiers(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []page.Link{
-		{Line: 6, Col: 22, Len: 4, File: "lib/lib.go", To: 9},
-		{Line: 6, Col: 36, Len: 4, File: "lib/lib.go", To: 9},
-		{Line: 6, Col: 41, Len: 4, File: "lib/lib.go", To: 9},
+		{Line: 6, Col: 22, Len: 4, File: "lib/lib.go", To: 9, Key: "lib.Item"},
+		{Line: 6, Col: 36, Len: 4, File: "lib/lib.go", To: 9, Key: "lib.Item"},
+		{Line: 6, Col: 41, Len: 4, File: "lib/lib.go", To: 9}, // a field has no key
 		{Line: 6, Col: 47, Len: 7, URL: "https://pkg.go.dev/strings"},
 		{Line: 6, Col: 55, Len: 9, URL: "https://pkg.go.dev/strings#TrimSpace"},
 		{Line: 6, Col: 65, Len: 1, File: "lib/lib.go", To: 6},
