@@ -58,8 +58,14 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 		return nil, err
 	}
 	if r.Base() != "" {
-		// HOLE(3): compare the methods of both versions too, from the parse, and also mark each function whose reach in the working tree holds a changed function or method
-		idx.ChangedDecls = changedDecls(before, after, idx.Before, idx.After)
+		if idx.ChangedDecls, err = changedDeclsAndMethods(before, after, idx); err != nil {
+			return nil, err
+		}
+		if res != nil && res.After != nil {
+			for key := range reached(res.After.Calls, idx.ChangedDecls) {
+				idx.ChangedDecls[key] = true
+			}
+		}
 	}
 	if idx.Std, err = stdPackages(); err != nil {
 		return nil, err
@@ -67,7 +73,6 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	if idx.Changed, err = r.Changed(); err != nil {
 		return nil, err
 	}
-	// HOLE(3): with a module, show every Go file of both versions, test files included, with the texts of res's resolutions
 	show := func(file string) {
 		p := idx.Files[file]
 		if content, ok := before[file]; ok {
@@ -97,15 +102,89 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 		idx.Files[c.Path] = c.Content
 	}
 	if res != nil {
+		// With a module, every Go file shows, in the texts that the load parsed.
 		if res.Before != nil {
+			for file, text := range res.Before.Files {
+				p := idx.Files[file]
+				p.Before = repo.Text{Content: text, Found: true}
+				idx.Files[file] = p
+			}
 			idx.BeforeLinks = res.Before.Links
 		}
 		if res.After != nil {
+			for file, text := range res.After.Files {
+				p := idx.Files[file]
+				p.After = repo.Text{Content: text, Found: true}
+				idx.Files[file] = p
+			}
 			idx.AfterLinks = res.After.Links
 		}
 		idx.Errors = res.Errors
+		// A version without a resolution keeps the texts from git.
+		for file, p := range idx.Files {
+			if content, ok := before[file]; ok && !p.Before.Found {
+				p.Before = repo.Text{Content: content, Found: true}
+			}
+			if content, ok := after[file]; ok && !p.After.Found {
+				p.After = repo.Text{Content: content, Found: true}
+			}
+			idx.Files[file] = p
+		}
 	}
 	return idx, nil
+}
+
+// changedDeclsAndMethods returns the keys of the changed declarations and methods of idx,
+// methods keyed like render.renderer.text.
+func changedDeclsAndMethods(before, after map[string]string, idx *Index) (map[string]bool, error) {
+	beforeMethods, err := methodPlaces(before)
+	if err != nil {
+		return nil, fmt.Errorf("at the base: %w", err)
+	}
+	afterMethods, err := methodPlaces(after)
+	if err != nil {
+		return nil, err
+	}
+	return changedDecls(before, after, union(idx.Before, beforeMethods), union(idx.After, afterMethods)), nil
+}
+
+// reached returns the keys of the functions and methods whose reach over calls holds a key
+// of changed.
+func reached(calls map[string][]string, changed map[string]bool) map[string]bool {
+	callers := map[string][]string{}
+	for caller, callees := range calls {
+		for _, callee := range callees {
+			callers[callee] = append(callers[callee], caller)
+		}
+	}
+	var queue []string
+	for key := range changed {
+		queue = append(queue, key)
+	}
+	out := map[string]bool{}
+	for len(queue) > 0 {
+		key := queue[0]
+		queue = queue[1:]
+		for _, caller := range callers[key] {
+			if !out[caller] {
+				out[caller] = true
+				queue = append(queue, caller)
+			}
+		}
+	}
+	return out
+}
+
+// union returns the places of a and b in one map; b wins a shared key.
+func union(a, b map[string]Place) map[string]Place {
+	out := make(map[string]Place, len(a)+len(b))
+	for k, p := range a {
+		out[k] = p
+	}
+	for k, p := range b {
+		out[k] = p
+	}
+	return out
 }
 
 // changedDecls returns the keys of the declarations whose lines, doc comment included,
@@ -144,6 +223,62 @@ func typeNames(types map[string]string) []string {
 }
 
 var qualifiedType = regexp.MustCompile(`\b[a-z][a-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*`)
+
+// methodPlaces returns the places of the methods of files, doc comments included, keyed like
+// render.renderer.text. The first file in path order wins a shared key.
+func methodPlaces(files map[string]string) (map[string]Place, error) {
+	paths := make([]string, 0, len(files))
+	for p := range files {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	fset := token.NewFileSet()
+	out := map[string]Place{}
+	for _, p := range paths {
+		f, err := parser.ParseFile(fset, p, files[p], parser.ParseComments|parser.SkipObjectResolution)
+		if err != nil {
+			return nil, err
+		}
+		for _, d := range f.Decls {
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok || fd.Recv == nil || len(fd.Recv.List) == 0 {
+				continue
+			}
+			recv := receiverName(fd.Recv.List[0].Type)
+			key := f.Name.Name + "." + recv + "." + fd.Name.Name
+			if _, taken := out[key]; taken || recv == "" {
+				continue
+			}
+			start := fd.Pos()
+			if fd.Doc != nil {
+				start = fd.Doc.Pos()
+			}
+			out[key] = Place{File: p, Start: fset.PositionFor(start, false).Line, End: fset.PositionFor(fd.End(), false).Line}
+		}
+	}
+	return out, nil
+}
+
+// receiverName returns the name of a receiver's type, through a pointer and type
+// parameters, or "" for another expression.
+func receiverName(t ast.Expr) string {
+	for {
+		switch e := t.(type) {
+		case *ast.StarExpr:
+			t = e.X
+		case *ast.IndexExpr:
+			t = e.X
+		case *ast.IndexListExpr:
+			t = e.X
+		case *ast.ParenExpr:
+			t = e.X
+		case *ast.Ident:
+			return e.Name
+		default:
+			return ""
+		}
+	}
+}
 
 // Key returns the declaration key of a reference: its package's name and its name.
 func Key(ref dfdtext.Reference) string {

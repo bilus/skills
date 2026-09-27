@@ -213,7 +213,6 @@ func TestLoadLinksIdentifiers(t *testing.T) {
 }
 
 func TestReadMarksByReach(t *testing.T) {
-	t.Skip("HOLE(3): mark each function whose reach holds a changed function or method")
 	r, dir := module(t)
 	c := index(t, r, dir)
 	for key, want := range map[string]bool{
@@ -230,7 +229,6 @@ func TestReadMarksByReach(t *testing.T) {
 }
 
 func TestReadMarksByReachWithoutBaseModule(t *testing.T) {
-	t.Skip("HOLE(3): the reach marks functions when only the working tree has a module")
 	g := gittest.New(t)
 	g.Write(map[string]string{"docs/flow.dfd": "[1. Run\n (p.F)]\n", "p/p.go": pGo(1)})
 	base := g.Commit("base")
@@ -248,7 +246,6 @@ func TestReadMarksByReachWithoutBaseModule(t *testing.T) {
 }
 
 func TestReadHoldsEveryGoFile(t *testing.T) {
-	t.Skip("HOLE(3): hold every Go file of both versions, test files included")
 	g := gittest.New(t)
 	g.Write(map[string]string{
 		"go.mod":        goMod,
