@@ -188,3 +188,35 @@ func dumpDOM(t *testing.T, chrome, url string) string {
 	}
 	return dom.String()
 }
+
+// TestShopPlaceInChrome opens the shop's page at a place that its URL hash names, as the
+// page writes it into the browser's history, and checks the place in headless Chrome's DOM.
+func TestShopPlaceInChrome(t *testing.T) {
+	chrome := os.Getenv("CHROME")
+	if chrome == "" {
+		chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+	}
+	if _, err := os.Stat(chrome); err != nil {
+		if chrome, err = exec.LookPath("google-chrome"); err != nil {
+			t.Skip("no Chrome; set CHROME to one")
+		}
+	}
+	dfd := filepath.Join(t.TempDir(), "dfd")
+	if err := os.WriteFile(dfd, []byte(echo), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	opts := shopPage(t, dfd)
+	if err := dfdreview.Build(opts); err != nil {
+		t.Fatal(err)
+	}
+	dom := dumpDOM(t, chrome, "file://"+opts.Out+"#f=cart/cart.go&fv=before&l=21")
+	for name, pattern := range map[string]string{
+		"the status of the place": `cart/cart\.go:21 \(Before\)`,
+		"the selected line":       `<div class="line sel" id="L21">`,
+		"the Before view's links": `data-line="7" data-version="before">Item</a>`,
+	} {
+		if !regexp.MustCompile(pattern).MatchString(dom) {
+			t.Errorf("the page lacks %s: %s", name, pattern)
+		}
+	}
+}

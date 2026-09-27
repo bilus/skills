@@ -43,7 +43,7 @@ dfdreview runs git and dfd, and it loads the code's module with go/packages, whi
 - The vocabulary's lines, `- term: definition`, give each term in a box, an entity or a store name its definition on hover.
 - A score card is two tab-separated lines, as `dfdmetrics -score` prints them: the column names and the values.
 - The code directory sits in a Go module: the nearest go.mod at or above it, inside the repository. dfdreview type-checks the module in both versions, the base from a temporary copy of its blobs at the base, with GOWORK=off and -mod=readonly, so it never writes go.mod or go.sum. GOOS, GOARCH and GOFLAGS, such as `-tags`, apply, and a file of another build configuration shows without identifier links. Without a module, the page has no identifier links, and only a declaration that differs itself carries the changed mark.
-- A URL that ends in `#code/<key>`, such as `#code/analyze.sumTypes`, opens that declaration when the page loads.
+- Each navigation adds an entry to the browser's history, so the Back button returns to the previous place. A navigation is a click on a tab, on a box's number, on a link in a drawing, on an identifier in the code panel or on a changed file. A switch between the Before, Diff and After views updates the current entry instead. The URL's hash names the place, as in `#d=3.3&v=diff&f=cart/cart.go&fv=after&l=21`, so a reload or a shared link opens it again. A hash such as `#code/analyze.sumTypes` opens that declaration.
 
 ## How it works
 

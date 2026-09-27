@@ -148,6 +148,8 @@ ul.errors li { white-space: pre-wrap; }
   const other = (version) => (version === "before" ? "after" : "before");
   const viewNames = { before: "Before", diff: "Diff", after: "After" };
   const state = { diagram: 0, view: {}, file: null, key: null, line: null, fileView: "after" };
+  const emptyCode = $("code-body").innerHTML;
+  const emptyStatus = $("code-status").innerHTML;
 
   $("title").textContent = data.title;
   $("subtitle").textContent = data.base
@@ -189,22 +191,27 @@ ul.errors li { white-space: pre-wrap; }
       id: k, label: d.number || "Overview", hint: d.number ? d.title : "",
       mark: marked[k],
       markTip: (marked[k] === "changed" ? "links a declaration changed since " : "links a function whose calls reach a change since ") + data.base,
-    })), i, selectDiagram);
+    })), i, (k) => navigate(() => selectDiagram(k)));
     const d = data.diagrams[i];
     $("diagram-title").textContent = d.title;
     const present = ["before", "diff", "after"].filter((v) => d[v]);
-    let view = state.view[i];
-    if (!present.includes(view)) {
-      view = present.includes("diff") ? "diff" : present[present.length - 1];
-    }
-    showView(view);
+    showView(present.includes(state.view[i]) ? state.view[i] : defaultView(d));
+  }
+
+  // defaultView returns the view a diagram opens in: Diff when it changed, else its one view.
+  function defaultView(d) {
+    const present = ["before", "diff", "after"].filter((v) => d[v]);
+    return present.includes("diff") ? "diff" : present[present.length - 1];
   }
 
   function showView(view) {
     const d = data.diagrams[state.diagram];
     state.view[state.diagram] = view;
     const present = ["before", "diff", "after"].filter((v) => d[v]);
-    tabs($("views"), present.length > 1 ? present.map((v) => ({ id: v, label: viewNames[v] })) : [], view, showView);
+    tabs($("views"), present.length > 1 ? present.map((v) => ({ id: v, label: viewNames[v] })) : [], view, (v) => {
+      showView(v);
+      record(false);
+    });
     $("drawing").innerHTML = d[view] || "";
     const svg = $("drawing").querySelector("svg");
     if (svg) {
@@ -252,10 +259,10 @@ ul.errors li { white-space: pre-wrap; }
         t.classList.add("child");
         t.setAttribute("tabindex", "0");
         t.setAttribute("role", "link");
-        t.addEventListener("click", () => selectDiagram(child));
+        t.addEventListener("click", () => navigate(() => selectDiagram(child)));
         t.addEventListener("keydown", (e) => {
           if (e.key === "Enter") {
-            selectDiagram(child);
+            navigate(() => selectDiagram(child));
           }
         });
       }
@@ -268,10 +275,10 @@ ul.errors li { white-space: pre-wrap; }
       const href = a.getAttribute("href");
       if (href.startsWith("#code/")) {
         e.preventDefault();
-        showDecl(href.slice(6), version);
+        navigate(() => showDecl(href.slice(6), version));
       } else if (href.startsWith("#type/")) {
         e.preventDefault();
-        showType(decodeURIComponent(href.slice(6)), version);
+        navigate(() => showType(decodeURIComponent(href.slice(6)), version));
       } else if (href.startsWith("#")) {
         e.preventDefault();
       }
@@ -491,6 +498,7 @@ ul.errors li { white-space: pre-wrap; }
     tabs($("code-views"), present.length > 1 ? present.map((v) => ({ id: v, label: viewNames[v] })) : [], state.fileView, (v) => {
       state.fileView = v;
       renderFile();
+      record(false);
     });
     let where = state.key && state.fileView !== "diff" ? placeOf(state.key, state.fileView) : null;
     if (state.line && state.fileView !== "diff") {
@@ -618,7 +626,7 @@ ul.errors li { white-space: pre-wrap; }
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = c.path;
-      b.addEventListener("click", () => openFile(c.path, "diff", null));
+      b.addEventListener("click", () => navigate(() => openFile(c.path, "diff", null)));
       li.appendChild(s);
       li.appendChild(b);
       ul.appendChild(li);
@@ -651,20 +659,107 @@ ul.errors li { white-space: pre-wrap; }
   if (data.errors && data.errors.length) {
     section("Package errors", packageErrors());
   }
-  if (data.diagrams.length) {
-    selectDiagram(0);
-  }
   $("code-body").addEventListener("click", (e) => {
     const a = e.target.closest("a.ident");
     if (a && a.dataset.file) {
       e.preventDefault();
-      openDefinition({ f: a.dataset.file, t: Number(a.dataset.line) }, a.dataset.version);
+      navigate(() => openDefinition({ f: a.dataset.file, t: Number(a.dataset.line) }, a.dataset.version));
     }
   });
-  // A hash such as #code/analyze.sumTypes opens that declaration.
-  if (location.hash.startsWith("#code/")) {
-    showDecl(decodeURIComponent(location.hash.slice(6)), "after");
+
+  // The history: each navigation adds an entry, and a switch of view updates the current one,
+  // so the Back button returns to the previous place. An entry's URL hash names its place, as
+  // in #d=3.3&v=diff&f=cart/cart.go&fv=after&l=21, and a hash such as #code/analyze.sumTypes
+  // opens that declaration.
+  const place = () => ({
+    diagram: state.diagram, view: { ...state.view },
+    file: state.file, key: state.key, line: state.line, fileView: state.fileView,
+  });
+
+  function hashOf(p) {
+    const parts = [];
+    const add = (name, value) => {
+      if (value) {
+        parts.push(name + "=" + encodeURIComponent(value).replace(/%2F/g, "/"));
+      }
+    };
+    const d = data.diagrams[p.diagram] || {};
+    add("d", d.number);
+    if (p.view[p.diagram] !== defaultView(d)) {
+      add("v", p.view[p.diagram]);
+    }
+    if (p.file) {
+      add("f", p.file);
+      add("fv", p.fileView);
+      add("k", p.key);
+      add("l", p.line ? String(p.line) : "");
+    }
+    return parts.length ? "#" + parts.join("&") : "";
   }
+
+  // placeOfHash reads a place from a hash that hashOf wrote.
+  function placeOfHash(hash) {
+    const q = new URLSearchParams(hash.slice(1));
+    const diagram = Math.max(0, data.diagrams.findIndex((d) => d.number === (q.get("d") || "")));
+    const view = q.get("v") ? { [diagram]: q.get("v") } : {};
+    return { diagram, view, file: q.get("f"), key: q.get("k"), line: Number(q.get("l")) || null, fileView: q.get("fv") || "after" };
+  }
+
+  function record(push) {
+    const p = place();
+    const url = location.href.split("#")[0] + hashOf(p);
+    if (push) {
+      history.pushState(p, "", url);
+    } else {
+      history.replaceState(p, "", url);
+    }
+  }
+
+  // navigate runs a step, and adds a history entry when the step changes the place.
+  function navigate(step) {
+    const before = hashOf(place());
+    step();
+    if (hashOf(place()) !== before) {
+      record(true);
+    }
+  }
+
+  function restore(p) {
+    state.view = { ...p.view };
+    selectDiagram(p.diagram);
+    Object.assign(state, { file: p.file, key: p.key, line: p.line, fileView: p.fileView });
+    if (state.file) {
+      renderFile();
+    } else {
+      $("code-views").innerHTML = "";
+      $("code-body").innerHTML = emptyCode;
+      status(emptyStatus);
+    }
+  }
+
+  // openHash opens the place that a URL hash names, and the top diagram for an empty one.
+  function openHash(hash) {
+    if (hash.startsWith("#code/")) {
+      selectDiagram(0);
+      showDecl(decodeURIComponent(hash.slice(6)), "after");
+    } else {
+      restore(hash.length > 1 ? placeOfHash(hash) : { diagram: 0, view: {}, file: null, key: null, line: null, fileView: "after" });
+    }
+  }
+
+  if (data.diagrams.length) {
+    openHash(location.hash);
+    record(false);
+  }
+  // An entry without a state comes from a change of the hash alone, as in an edited URL.
+  window.addEventListener("popstate", (e) => {
+    if (e.state) {
+      restore(e.state);
+    } else {
+      openHash(location.hash);
+      record(false);
+    }
+  });
 
   // The splitter resizes the code panel, and this browser keeps the width.
   const main = document.querySelector("main");

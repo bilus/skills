@@ -24,6 +24,6 @@ dfdreview -base <commit> -plan <plan path> \
   -report docs/review/report.txt docs/flow.dfd
 ```
 
-The base is the commit at the start of the stage: the previous stage's boundary commit from the ledger, or at the plan gate, the commit at the start of the work. dfdreview reads the base versions with git, runs dfd for every drawing and type-checks the module with the go command, so all three must be on the PATH. A URL that ends in `#code/<key>`, such as `#code/analyze.sumTypes`, opens that declaration. `tools/dfdreview/README.md` lists the other flags and the conventions the page relies on.
+The base is the commit at the start of the stage: the previous stage's boundary commit from the ledger, or at the plan gate, the commit at the start of the work. dfdreview reads the base versions with git, runs dfd for every drawing and type-checks the module with the go command, so all three must be on the PATH. Each click on a tab, a box's number, a link or an identifier adds an entry to the browser's history, so the Back button returns to the previous place, and the URL's hash names each place, so a shared link opens it. A hash such as `#code/analyze.sumTypes` opens that declaration. `tools/dfdreview/README.md` lists the other flags and the conventions the page relies on.
 
 The page loads highlight.js from cdnjs and holds everything else inline. Give your human partner the page's path in the handoff, and publish the page elsewhere, such as an artifact, only when your human partner asks for a link.
