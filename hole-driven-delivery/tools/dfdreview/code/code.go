@@ -1,4 +1,5 @@
-// Package code indexes the Go declarations and the changed files of a change in both versions.
+// Package code loads the module of a change with its types, and indexes its declarations,
+// changed files and identifier links in both versions.
 package code
 
 import (
@@ -17,13 +18,16 @@ import (
 	"github.com/bilus/skills/hole-driven-delivery/tools/dfdreview/repo"
 )
 
-// Index is the Go declarations and the changed files of a change, in both versions.
+// Index is the code of a change in both versions: the declarations with the changed ones,
+// the files the page shows with their identifier links, and the package errors.
 type Index struct {
-	Before, After map[string]Place     // declarations by key, such as "analyze.sumTypes"
-	ChangedDecls  map[string]bool      // the keys of the declarations that differ between the versions
-	Std           map[string]bool      // the standard library's import paths
-	Files         map[string]repo.Pair // the files the page shows, by path
-	Changed       []repo.Change
+	Before, After           map[string]Place     // declarations by key, such as "analyze.sumTypes"
+	ChangedDecls            map[string]bool      // the keys of the changed declarations
+	Std                     map[string]bool      // the standard library's import paths
+	Files                   map[string]repo.Pair // the files the page shows, by path
+	Changed                 []repo.Change
+	BeforeLinks, AfterLinks map[string][]Link // the identifier links of each Go file, by path
+	Errors                  []string          // the package errors of both versions
 }
 
 // Place is where a declaration sits, its doc comment included.
@@ -32,10 +36,16 @@ type Place struct {
 	Start, End int // lines, from 1
 }
 
-// Read indexes the declarations of both versions and the files changed since the base.
-// The page shows the files of the declarations that the boxes and the type comments
-// name, and every changed file. Without a base, ChangedDecls is empty.
+// Read loads the module with its types, then indexes the declarations, the changed files
+// and the identifier links of both versions. With a module, the page shows every Go file
+// of both versions, test files included; without one, the files of the declarations that
+// the boxes and the type comments name. Every changed file shows too. Without a base,
+// ChangedDecls is empty.
 func Read(r *repo.Repo, d *design.Design) (*Index, error) {
+	res, err := Load(r)
+	if err != nil {
+		return nil, err
+	}
 	before, after, err := r.GoFiles()
 	if err != nil {
 		return nil, err
@@ -48,6 +58,7 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 		return nil, err
 	}
 	if r.Base() != "" {
+		// HOLE(3): compare the methods of both versions too, from the parse, and also mark each function whose reach in the working tree holds a changed function or method
 		idx.ChangedDecls = changedDecls(before, after, idx.Before, idx.After)
 	}
 	if idx.Std, err = stdPackages(); err != nil {
@@ -56,6 +67,7 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	if idx.Changed, err = r.Changed(); err != nil {
 		return nil, err
 	}
+	// HOLE(3): with a module, show every Go file of both versions, test files included, with the texts of res's resolutions
 	show := func(file string) {
 		p := idx.Files[file]
 		if content, ok := before[file]; ok {
@@ -83,6 +95,15 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	}
 	for _, c := range idx.Changed {
 		idx.Files[c.Path] = c.Content
+	}
+	if res != nil {
+		if res.Before != nil {
+			idx.BeforeLinks = res.Before.Links
+		}
+		if res.After != nil {
+			idx.AfterLinks = res.After.Links
+		}
+		idx.Errors = res.Errors
 	}
 	return idx, nil
 }

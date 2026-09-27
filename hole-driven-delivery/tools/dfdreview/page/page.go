@@ -23,6 +23,7 @@ type Data struct {
 	OldScore *Card           `json:"oldScore"`
 	NewScore *Card           `json:"newScore"`
 	Report   string          `json:"report"`
+	Errors   []string        `json:"errors"` // the package errors of both versions
 }
 
 // Diagram is one tab: a diagram's views, each an SVG document or "", and its items' types.
@@ -35,11 +36,25 @@ type Diagram struct {
 	Types  Versions `json:"types"`
 }
 
-// File is a source file in both versions, with its diff; nil where it does not exist.
+// File is a source file in both versions, nil where it does not exist, with its diff
+// and the identifier links of each version.
 type File struct {
-	Before *string `json:"before"`
-	After  *string `json:"after"`
-	Diff   string  `json:"diff"`
+	Before      *string `json:"before"`
+	After       *string `json:"after"`
+	Diff        string  `json:"diff"`
+	BeforeLinks []Link  `json:"beforeLinks"`
+	AfterLinks  []Link  `json:"afterLinks"`
+}
+
+// Link is an identifier and its definition: a line of a Go file of the code directory in
+// the same version, or a URL. The short keys keep the page small.
+type Link struct {
+	Line int    `json:"l"`
+	Col  int    `json:"c"` // in UTF-16 code units, from 1
+	Len  int    `json:"n"` // in UTF-16 code units
+	File string `json:"f,omitempty"`
+	To   int    `json:"t,omitempty"`
+	URL  string `json:"u,omitempty"`
 }
 
 // Decl is where a declaration sits in each version, nil for a version without it,

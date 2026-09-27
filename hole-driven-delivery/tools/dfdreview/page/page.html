@@ -371,6 +371,18 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
     return status;
   }
 
+  // linkLine wraps each identifier of line n of the open file, in its highlighted html,
+  // in a link to the identifier's definition in the same version.
+  function linkLine(html, n, version) {
+    // HOLE(4): find the line's identifier links in the open file's links of version, and wrap each identifier, found by its column, in a link that calls openDefinition
+    return html;
+  }
+
+  // openDefinition opens a link's definition: its file in the same version at its line, or its URL.
+  function openDefinition(link, version) {
+    // HOLE(4): open the definition's file in the code panel in version, at its line, or open its URL in a new tab
+  }
+
   function renderFile() {
     const f = data.files[state.file];
     if (!f) {
@@ -412,13 +424,19 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
       f[state.fileView].replace(/\n$/, "").split("\n").forEach((ln, i) => {
         const n = i + 1;
         const sel = (where && n >= where.start && n <= where.end ? " sel" : "") + (changed[n] ? " " + changed[n] : "");
-        const src = go ? hljs.highlight(ln, { language: "go", ignoreIllegals: true }).value : esc(ln);
+        const src = linkLine(go ? hljs.highlight(ln, { language: "go", ignoreIllegals: true }).value : esc(ln), n, state.fileView);
         out.push('<div class="line' + sel + '" id="L' + n + '"><span class="n">' + n + '</span><span class="s">' + src + "</span></div>");
       });
     }
     $("code-body").innerHTML = out.join("");
     const target = where && document.getElementById("L" + where.start);
     $("code").scrollTop = target ? target.offsetTop - $("code-head").offsetHeight - 12 : 0;
+  }
+
+  // packageErrors lists the package errors of both versions.
+  function packageErrors() {
+    // HOLE(4): list each package error, with its version and its package
+    return document.createElement("ul");
   }
 
   // The notes under the drawings.
@@ -523,6 +541,9 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
     pre.className = "report";
     pre.textContent = data.report;
     section("dfdmetrics report", pre);
+  }
+  if (data.errors && data.errors.length) {
+    section("Package errors", packageErrors());
   }
   if (data.diagrams.length) {
     selectDiagram(0);

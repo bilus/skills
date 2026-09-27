@@ -1,6 +1,6 @@
 # Process 4, the body of draw.Views.
 
-{3. Index the declarations}
+{3. Load and index the code}
 > design
 [4.1. Align the versions of each diagram line by line
  so the Diff view shows only what changed

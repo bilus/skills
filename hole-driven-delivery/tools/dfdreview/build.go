@@ -65,7 +65,7 @@ func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index)
 	self = filepath.ToSlash(self)
 	data := page.Data{
 		Title: n.Title, Base: d.Base, Brief: n.Brief, Metaphor: n.Metaphor, Report: n.Report,
-		OldScore: card(n.OldScore), NewScore: card(n.NewScore),
+		OldScore: card(n.OldScore), NewScore: card(n.NewScore), Errors: c.Errors,
 		Files: map[string]page.File{}, Decls: map[string]page.Decl{},
 		Terms: page.Versions{Before: design.Terms(d.Vocabulary.Before.Content), After: design.Terms(d.Vocabulary.After.Content)},
 	}
@@ -92,7 +92,8 @@ func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index)
 	}
 	for path, p := range c.Files {
 		if path != self {
-			data.Files[path] = page.File{Before: content(p.Before), After: content(p.After), Diff: diffs[path]}
+			data.Files[path] = page.File{Before: content(p.Before), After: content(p.After), Diff: diffs[path],
+				BeforeLinks: links(c.BeforeLinks[path]), AfterLinks: links(c.AfterLinks[path])}
 		}
 	}
 	for key, pl := range c.Before {
@@ -129,6 +130,18 @@ func card(c *notes.Card) *page.Card {
 		return nil
 	}
 	return &page.Card{Columns: c.Columns, Values: c.Values}
+}
+
+// links turns a file's identifier links into the page's form.
+func links(ls []code.Link) []page.Link {
+	if len(ls) == 0 {
+		return nil
+	}
+	out := make([]page.Link, 0, len(ls))
+	for _, l := range ls {
+		out = append(out, page.Link{Line: l.Line, Col: l.Col, Len: l.Len, File: l.File, To: l.To, URL: l.URL})
+	}
+	return out
 }
 
 // content returns a version's text, nil where the file does not exist.

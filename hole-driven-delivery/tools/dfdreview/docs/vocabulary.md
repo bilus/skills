@@ -5,10 +5,10 @@ Terms of dfdreview, one per line.
 - review page: the HTML page a reviewer opens at the plan gate and at each stage boundary.
 - base: the revision that the page compares against, given with -base; at a stage boundary, the commit at the start of the stage. Without a base, nothing has changed.
 - version: one side of the comparison: the base, shown as Before, or the working tree, shown as After.
-- top diagram: the diagram the command names, such as docs/flow.dfd; a child diagram expands one of its processes, as flow.3.dfd expands process 3.
-- action line: the first line of a box, the step's action in the imperative.
-- view: one drawing of a diagram, or one text of a source file: Before, Diff or After. An unchanged diagram or file has a single view.
-- element: a process title, an entity name, a store name or an arrow label of a dfd source, with its text on each of its lines.
+- top diagram: the diagram the command names, such as docs/flow.dfd. A child diagram expands one process of the diagram above it, as flow.3.dfd expands process 3 and flow.3.2.dfd expands process 3.2.
+- view: one drawing of a diagram, or one text of a source file: Before, Diff or After. An unchanged diagram has a single view. A file has a view for each version that holds it, and a Diff view after a change.
+- element: a process title, an entity or external system name, a store name or an arrow label of a dfd source, with its text on each of its lines.
+- external system: something outside the program that a process sends data to or receives data from, drawn as <Name> beside the process, such as <Go command>.
 - reference: a qualified name in the last top-level parentheses of a box, such as analyze.sumTypes.
 - item: one comma-separated part of a flow arrow's label, such as "sum types".
 - type comment: a line "# type: item = type" of a dfd source; an item with one is a typed item.
@@ -22,11 +22,23 @@ Terms of dfdreview, one per line.
 - sheet: a diagram ready to draw: both versions and the patch, linked.
 - design: the diagrams and the vocabulary, in both versions.
 - code directory: the directory above the design's directory, whose Go files dfdreview indexes.
-- declaration: a top-level Go function, type, variable or constant, with its file and lines, in one version.
-- code index: the declarations of both versions, and the changed files with their diffs.
+- module: the Go module of the nearest go.mod at or above the code directory, inside the repository, in each version. A version without one has no module.
+- module directory: the directory that holds the module's go.mod.
+- base export: a temporary copy of the module directory's blobs at the base, written for the load and deleted after it.
+- load: the work of code.Load: running the go command and type-checking the module in both versions, the base from the base export.
+- build configuration: the GOOS, GOARCH and build tags of the go command, which choose the files of each package.
+- declaration: a top-level Go function, type, variable or constant of a file other than a test file, with its file and lines, in one version. Methods are not declarations, since a box names a method by its type.
+- key: the package name joined to the name of a declaration, as in analyze.sumTypes, or of a method, as in render.renderer.text. Two packages with one name share their keys.
+- changed declaration: a declaration or a method that differs between the versions, doc comment included, or exists in one of them only, as a parse without types finds it, and a function whose reach in the working tree holds such a function or method.
+- reach: the functions and methods of a function's own package that it calls, and those that they call in turn, without leaving the package or entering its tests. A method call resolves by the receiver's type, and a call of an interface method reaches the method of every type of the package that implements the interface.
+- changed mark: the red asterisk after the link of a changed declaration, and after the label of a diagram tab whose drawings hold such a link.
+- resolution: what the load finds in one version of the module: the functions and methods of its own package that each function and method calls, and the text and the identifier links of every Go file.
+- identifier link: an identifier in a Go file that uses an object declared in Go code, not a predeclared one such as int, with the place where the page opens the object: a line of a Go file of the code directory in the same version, the package clause of a package's first file, or the object's documentation on pkg.go.dev.
+- package error: an error that the load reports for a version: an error of the go command, a parse or type error of a package, or the failure of the version's whole load.
+- code index: the declarations of both versions with the changed ones, the files the page shows with the identifier links of each Go file, the standard library's import paths, the package errors, and the changed files with their diffs.
 - changed file: a file of the code directory that differs between the versions, a new or a deleted file included.
 - diff: the unified diff of a changed file, as git prints it.
 - score card: the output of dfdmetrics -score. The page shows the old card, cached from the last approved review, beside the new card of this review.
 - report: the output of dfdmetrics without -score.
-- notes: the plan's sections "The change in brief" and "Metaphor", the score cards and the report.
+- notes: the plan's title and its sections "The change in brief" and "Metaphor", the score cards and the report.
 - code panel: the part of the page that shows a source file in its views.

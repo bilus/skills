@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -114,5 +115,49 @@ func TestBuild(t *testing.T) {
 	}
 	if _, ok := d.Files["docs/review/index.html"]; ok {
 		t.Errorf("the page holds itself")
+	}
+}
+
+// libGo is package lib, whose doc comment of Parse ends in doc.
+func libGo(doc string) string {
+	return "package lib\n\nimport \"strings\"\n\n// Parse " + doc + ".\n" +
+		"func Parse(s string) Item { return Item{Name: strings.TrimSpace(s)} }\n\n" +
+		"// Item is one parsed thing.\ntype Item struct{ Name string }\n"
+}
+
+// TestBuildLinksIdentifiers is the smoke test of this change: the page of a module holds
+// the identifier links of a changed file.
+func TestBuildLinksIdentifiers(t *testing.T) {
+	g := gittest.New(t)
+	g.Write(map[string]string{
+		"go.mod":        "module example.com/m\n\ngo 1.22\n",
+		"docs/flow.dfd": "[1. Parse the input\n (lib.Parse)]\n",
+		"lib/lib.go":    libGo("reads"),
+	})
+	base := g.Commit("base")
+	g.Write(map[string]string{"lib/lib.go": libGo("reads the input")})
+	dfd := filepath.Join(t.TempDir(), "dfd")
+	if err := os.WriteFile(dfd, []byte(echo), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	opts := dfdreview.Options{
+		Design: filepath.Join(g.Dir, "docs", "flow.dfd"),
+		Base:   base,
+		DFD:    dfd,
+		Out:    filepath.Join(t.TempDir(), "index.html"),
+	}
+	if err := dfdreview.Build(opts); err != nil {
+		t.Fatal(err)
+	}
+	want := []page.Link{
+		{Line: 6, Col: 22, Len: 4, File: "lib/lib.go", To: 9},
+		{Line: 6, Col: 36, Len: 4, File: "lib/lib.go", To: 9},
+		{Line: 6, Col: 41, Len: 4, File: "lib/lib.go", To: 9},
+		{Line: 6, Col: 47, Len: 7, URL: "https://pkg.go.dev/strings"},
+		{Line: 6, Col: 55, Len: 9, URL: "https://pkg.go.dev/strings#TrimSpace"},
+		{Line: 6, Col: 65, Len: 1, File: "lib/lib.go", To: 6},
+	}
+	if got := readPage(t, opts.Out).Files["lib/lib.go"].AfterLinks; !reflect.DeepEqual(got, want) {
+		t.Errorf("the links of lib/lib.go:\n got %+v\nwant %+v", got, want)
 	}
 }

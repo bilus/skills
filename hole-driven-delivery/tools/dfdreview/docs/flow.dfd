@@ -11,9 +11,15 @@
  so each diagram can be drawn before and after
  (design.Read)]
 > repository, design
-[3. Index the declarations and the changed files
- so each reference finds its code
- (code.Read)]
+[3. Load the module with its types, then index the declarations, the changed files and the identifier links of both versions
+ so each reference finds its code and each identifier its definition
+ (code.Read, code.Load)]
+    < working tree files
+    <Module directory>
+    < base files
+    <Git command>
+    > base export
+    <Go command>
 > design, code index, dfd command
 [4. Draw each diagram before, as a diff and after
  so the reviewer sees each change in place
