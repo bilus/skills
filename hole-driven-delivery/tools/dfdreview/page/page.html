@@ -8,7 +8,7 @@
 :root {
   --paper: #f5f6f8; --ink: #1b1f26; --muted: #5d6470; --panel: #ffffff; --rule: #d9dce3;
   --accent: #4a37b0; --sel: #ece8fb; --sel-rule: #b9acf0;
-  --add: #1e7e34; --add-bg: #e6f4ea; --del: #b3261e; --del-bg: #fdecea; --amber: #b36b00;
+  --add: #1e7e34; --add-bg: #e6f4ea; --del: #b3261e; --del-bg: #fdecea; --amber: #b36b00; --amber-bg: #fcefd6;
   --code-kw: #8a3d9c; --code-str: #1d6b3a; --code-cmt: #6f7682; --code-type: #1c5fa8; --code-num: #a35a12;
 }
 @media (prefers-color-scheme: dark) {
@@ -16,7 +16,7 @@
     color-scheme: dark;
     --paper: #14161a; --ink: #e6e8ec; --muted: #9aa1ad; --panel: #1b1e24; --rule: #2c3038;
     --accent: #b3a6f5; --sel: #2a2544; --sel-rule: #5b4fa0;
-    --add: #6fcf8a; --add-bg: #17301f; --del: #f28b82; --del-bg: #3a1c1a; --amber: #e6a86b;
+    --add: #6fcf8a; --add-bg: #17301f; --del: #f28b82; --del-bg: #3a1c1a; --amber: #e6a86b; --amber-bg: #3a2d16;
     --code-kw: #d197e0; --code-str: #8fd2a6; --code-cmt: #7d8592; --code-type: #8ec1f2; --code-num: #e6a86b;
   }
 }
@@ -24,7 +24,7 @@
   color-scheme: dark;
   --paper: #14161a; --ink: #e6e8ec; --muted: #9aa1ad; --panel: #1b1e24; --rule: #2c3038;
   --accent: #b3a6f5; --sel: #2a2544; --sel-rule: #5b4fa0;
-  --add: #6fcf8a; --add-bg: #17301f; --del: #f28b82; --del-bg: #3a1c1a; --amber: #e6a86b;
+  --add: #6fcf8a; --add-bg: #17301f; --del: #f28b82; --del-bg: #3a1c1a; --amber: #e6a86b; --amber-bg: #3a2d16;
   --code-kw: #d197e0; --code-str: #8fd2a6; --code-cmt: #7d8592; --code-type: #8ec1f2; --code-num: #e6a86b;
 }
 * { box-sizing: border-box; }
@@ -50,12 +50,18 @@ body.resizing { cursor: col-resize; user-select: none; }
 .tabs button[aria-selected="true"] { background: var(--panel); color: var(--ink); border-color: var(--sel-rule); font-weight: 600; }
 .tabs.small button { font-size: 12px; padding: 2px 8px; }
 .tabs button .mark { color: var(--del); font-weight: 700; margin-left: 2px; }
+.tabs button .mark.reached { color: var(--amber); }
 #drawing svg { display: block; max-width: 100%; height: auto; background: #fff; border: 1px solid var(--rule); border-radius: 6px; }
 #drawing a[href] { cursor: pointer; }
 #drawing a[href]:hover tspan, #drawing a[href]:focus tspan { fill: #4a37b0; }
 #drawing .child { cursor: pointer; fill: #4a37b0; text-decoration: underline; }
 #drawing .missing tspan { fill: #b3261e; }
 /* A larger asterisk stays visible in a scaled-down drawing; the shift keeps it on its line. */
+/* A marked link's highlight: light red for its own change, light amber for a change in its reach. */
+#drawing rect.hl.changed { fill: #fde2df; }
+#drawing rect.hl.reached { fill: #fcefd6; }
+#drawing a[href] tspan.reached, #drawing a[href]:hover tspan.reached, #drawing a[href]:focus tspan.reached {
+  fill: #b36b00; font-weight: 700; font-size: 1.7em; }
 #drawing a[href] tspan.changed, #drawing a[href]:hover tspan.changed, #drawing a[href]:focus tspan.changed {
   fill: #b3261e; font-weight: 700; font-size: 1.7em; baseline-shift: -0.35em; }
 h2 { font-size: 14px; margin: 22px 0 6px; }
@@ -92,6 +98,13 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
 .line.modified .n { box-shadow: inset -4px 0 0 var(--amber); }
 #code-body a.ident { color: inherit; text-decoration: none; }
 #code-body a.ident:hover, #code-body a.ident:focus { text-decoration: underline; cursor: pointer; }
+/* A marked identifier: its highlight, and its mark drawn above the line, so no column moves. */
+#code-body a.ident.mark-changed, #code-body a.ident.mark-reached { position: relative; border-radius: 2px; }
+#code-body a.ident.mark-changed { background: var(--del-bg); }
+#code-body a.ident.mark-reached { background: var(--amber-bg); }
+#code-body a.ident.mark-changed::after, #code-body a.ident.mark-reached::after { position: absolute; top: -0.55em; right: -0.5em; font-weight: 700; }
+#code-body a.ident.mark-changed::after { content: "*"; color: var(--del); }
+#code-body a.ident.mark-reached::after { content: "~"; color: var(--amber); }
 ul.errors { margin: 0; padding-left: 18px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 ul.errors li { white-space: pre-wrap; }
 .hljs-keyword, .hljs-literal { color: var(--code-kw); }
@@ -154,9 +167,9 @@ ul.errors li { white-space: pre-wrap; }
       }
       if (item.mark) {
         const star = document.createElement("span");
-        star.className = "mark";
-        star.textContent = "*";
-        star.title = item.mark;
+        star.className = "mark " + item.mark;
+        star.textContent = marks[item.mark].glyph;
+        star.title = item.markTip;
         b.appendChild(star);
       }
       b.addEventListener("click", () => onSelect(item.id));
@@ -165,16 +178,17 @@ ul.errors li { white-space: pre-wrap; }
   }
 
   // The diagrams, each in its views.
-  let marked = null; // for each diagram, whether its drawings link a changed declaration
+  let marked = null; // for each diagram, the strongest mark of the declarations its drawings link
 
   function selectDiagram(i) {
     state.diagram = i;
-    marked = marked || data.diagrams.map(hasChange);
+    marked = marked || data.diagrams.map(tabMark);
     // A tab shows the diagram's number. Its title, the description of the expanded
     // process, shows on hover and above the drawing.
     tabs($("tabs"), data.diagrams.map((d, k) => ({
       id: k, label: d.number || "Overview", hint: d.number ? d.title : "",
-      mark: marked[k] ? "links a declaration changed since " + data.base : "",
+      mark: marked[k],
+      markTip: (marked[k] === "changed" ? "links a declaration changed since " : "links a function whose calls reach a change since ") + data.base,
     })), i, selectDiagram);
     const d = data.diagrams[i];
     $("diagram-title").textContent = d.title;
@@ -217,13 +231,13 @@ ul.errors li { white-space: pre-wrap; }
         const decl = data.decls[href.slice(6)];
         if (!decl || (!decl.before && !decl.after)) {
           a.classList.add("missing");
-        } else if (decl.changed) {
-          markChanged(a);
+        } else if (markOf(decl)) {
+          markLink(a, markOf(decl));
         }
       } else if (href.startsWith("#type/")) {
         const decl = data.decls[typeKey(typeOf(data.diagrams[state.diagram], decodeURIComponent(href.slice(6)), version))];
-        if (decl && decl.changed) {
-          markChanged(a);
+        if (markOf(decl)) {
+          markLink(a, markOf(decl));
         }
       } else if (/^https?:/.test(href)) {
         a.setAttribute("target", "_blank");
@@ -264,23 +278,47 @@ ul.errors li { white-space: pre-wrap; }
     });
   }
 
-  // hasChange reports whether a diagram's drawings link a declaration that differs from the base.
-  function hasChange(d) {
-    return ["before", "diff", "after"].some((view) =>
-      [...(d[view] || "").matchAll(/href="#(code|type)\/([^"]*)"/g)].some((m) => {
+  // The two marks of a changed declaration: a change in its own text, or in its reach only.
+  const marks = {
+    changed: { glyph: "*", tip: "changed since " },
+    reached: { glyph: "~", tip: "calls a function or method changed since " },
+  };
+
+  // markOf returns a declaration's mark: "changed", "reached" or "".
+  const markOf = (decl) => (!decl || !decl.changed ? "" : decl.reached ? "reached" : "changed");
+
+  // tabMark returns the strongest mark among the declarations that a diagram's drawings link.
+  function tabMark(d) {
+    let best = "";
+    ["before", "diff", "after"].forEach((view) => {
+      for (const m of (d[view] || "").matchAll(/href="#(code|type)\/([^"]*)"/g)) {
         const key = m[1] === "code" ? m[2] : typeKey(typeOf(d, decodeURIComponent(m[2]), versionOf(view)));
-        return Boolean((data.decls[key] || {}).changed);
-      }),
-    );
+        const kind = markOf(data.decls[key]);
+        if (kind === "changed" || (kind === "reached" && !best)) {
+          best = kind;
+        }
+      }
+    });
+    return best;
   }
 
-  // markChanged puts a red asterisk after a link whose declaration differs from the base.
-  function markChanged(a) {
-    const star = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
-    star.classList.add("changed");
-    star.textContent = "*";
-    const t = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    t.textContent = "changed since " + data.base + ", directly or through a call";
+  // markLink puts a highlight behind a link of a changed declaration and its mark after it.
+  function markLink(a, kind) {
+    const svg = "http://www.w3.org/2000/svg";
+    const name = a.querySelector("tspan");
+    const text = a.closest("text");
+    if (name && text) {
+      const box = name.getBBox();
+      const rect = document.createElementNS(svg, "rect");
+      Object.entries({ x: box.x - 1, y: box.y, width: box.width + 2, height: box.height, rx: 2 }).forEach(([k, v]) => rect.setAttribute(k, v));
+      rect.setAttribute("class", "hl " + kind);
+      text.before(rect);
+    }
+    const star = document.createElementNS(svg, "tspan");
+    star.classList.add(kind);
+    star.textContent = marks[kind].glyph;
+    const t = document.createElementNS(svg, "title");
+    t.textContent = marks[kind].tip + data.base;
     a.append(star, t);
   }
 
@@ -405,7 +443,10 @@ ul.errors li { white-space: pre-wrap; }
       const name = text.node.splitText(from - text.start);
       name.splitText(link.n);
       const a = document.createElement("a");
-      a.className = "ident";
+      a.className = link.m ? "ident mark-" + link.m : "ident";
+      if (link.m) {
+        a.title = marks[link.m].tip + data.base;
+      }
       if (link.u) {
         a.href = link.u;
         a.target = "_blank";

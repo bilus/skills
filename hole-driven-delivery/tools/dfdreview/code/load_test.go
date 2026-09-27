@@ -186,15 +186,15 @@ func TestLoadLinksIdentifiers(t *testing.T) {
 	}
 	links := func(b int) []code.Link {
 		return []code.Link{
-			{Line: 6, Col: 34, Len: 7, URL: "https://pkg.go.dev/strings"},
-			{Line: 6, Col: 42, Len: 9, URL: "https://pkg.go.dev/strings#TrimSpace"},
-			{Line: 6, Col: 52, Len: 1, File: "p/a.go", To: 6},
-			{Line: 6, Col: 57, Len: 1, File: "p/b.go", To: b},
+			{Line: 6, Col: 34, Len: 7, URL: "https://pkg.go.dev/strings", In: "p.A"},
+			{Line: 6, Col: 42, Len: 9, URL: "https://pkg.go.dev/strings#TrimSpace", In: "p.A"},
+			{Line: 6, Col: 52, Len: 1, File: "p/a.go", To: 6, In: "p.A"},
+			{Line: 6, Col: 57, Len: 1, File: "p/b.go", To: b, In: "p.A"},
 			{Line: 8, Col: 15, Len: 1, File: "p/b.go", To: b}, // after a two-byte letter, one UTF-16 unit
-			{Line: 10, Col: 12, Len: 7, URL: "https://pkg.go.dev/strings"},
-			{Line: 10, Col: 20, Len: 7, URL: "https://pkg.go.dev/strings#Builder"},
-			{Line: 10, Col: 31, Len: 2, File: "p/a.go", To: 10},
-			{Line: 10, Col: 34, Len: 11, URL: "https://pkg.go.dev/strings#Builder.WriteString"},
+			{Line: 10, Col: 12, Len: 7, URL: "https://pkg.go.dev/strings", In: "p.w"},
+			{Line: 10, Col: 20, Len: 7, URL: "https://pkg.go.dev/strings#Builder", In: "p.w"},
+			{Line: 10, Col: 31, Len: 2, File: "p/a.go", To: 10, In: "p.w"},
+			{Line: 10, Col: 34, Len: 11, URL: "https://pkg.go.dev/strings#Builder.WriteString", In: "p.w"},
 		}
 	}
 	if got, want := res.Before.Links["p/a.go"], links(3); !reflect.DeepEqual(got, want) {
@@ -289,5 +289,67 @@ func TestLoadLeavesGoModAlone(t *testing.T) {
 	}
 	if res.Before == nil || res.After == nil || len(res.Errors) > 0 {
 		t.Errorf("resolutions: before %v, after %v, errors %v", res.Before != nil, res.After != nil, res.Errors)
+	}
+}
+
+// chainGo is package p at step n, with the call chain A, B, C: only C changes between steps.
+func chainGo(n int) string {
+	return fmt.Sprintf(`package p
+
+// A calls B.
+func A() int { return B() }
+
+// B calls C and D.
+func B() int { return C() + D() }
+
+// C returns the step.
+func C() int { return %d }
+
+// D stays the same.
+func D() int { return 0 }
+`, n)
+}
+
+func TestReadMarksKindsAndLinks(t *testing.T) {
+	g := gittest.New(t)
+	g.Write(map[string]string{
+		"go.mod":        goMod,
+		"docs/flow.dfd": "[1. Run\n (p.A)]\n",
+		"p/p.go":        chainGo(1),
+		"q/q.go":        "package q\n\nimport \"example.com/m/p\"\n\n// E calls p.A.\nfunc E() int { return p.A() }\n",
+	})
+	base := g.Commit("base")
+	g.Write(map[string]string{"p/p.go": chainGo(2)})
+	r, err := repo.Open(g.Dir, base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := index(t, r, g.Dir)
+	for key, want := range map[string]string{"p.A": code.MarkReached, "p.B": code.MarkReached, "p.C": code.MarkChanged, "p.D": "", "q.E": ""} {
+		got := ""
+		switch {
+		case c.Reached[key]:
+			got = code.MarkReached
+		case c.ChangedDecls[key]:
+			got = code.MarkChanged
+		}
+		if got != want {
+			t.Errorf("%s: mark %q, want %q", key, got, want)
+		}
+	}
+	marks := map[string]string{}
+	for path, links := range c.AfterLinks {
+		for _, l := range links {
+			if l.Mark != "" {
+				marks[fmt.Sprintf("%s:%d:%d", path, l.Line, l.Col)] = l.Mark
+			}
+		}
+	}
+	want := map[string]string{
+		"p/p.go:4:23": code.MarkReached, // B in A
+		"p/p.go:7:23": code.MarkChanged, // C in B; D, at 7:29, stays unmarked
+	}
+	if !reflect.DeepEqual(marks, want) {
+		t.Errorf("marked links %v, want %v", marks, want)
 	}
 }

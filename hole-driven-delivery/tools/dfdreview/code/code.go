@@ -22,7 +22,8 @@ import (
 // the files the page shows with their identifier links, and the package errors.
 type Index struct {
 	Before, After           map[string]Place     // declarations by key, such as "analyze.sumTypes"
-	ChangedDecls            map[string]bool      // the keys of the changed declarations
+	ChangedDecls            map[string]bool      // the keys of the changed declarations and methods
+	Reached                 map[string]bool      // the keys of those changed through their reach only
 	Std                     map[string]bool      // the standard library's import paths
 	Files                   map[string]repo.Pair // the files the page shows, by path
 	Changed                 []repo.Change
@@ -61,10 +62,16 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 		if idx.ChangedDecls, err = changedDeclsAndMethods(before, after, idx); err != nil {
 			return nil, err
 		}
+		idx.Reached = map[string]bool{}
 		if res != nil && res.After != nil {
 			for key := range reached(res.After.Calls, idx.ChangedDecls) {
-				idx.ChangedDecls[key] = true
+				if !idx.ChangedDecls[key] {
+					idx.Reached[key] = true
+				}
 			}
+		}
+		for key := range idx.Reached {
+			idx.ChangedDecls[key] = true
 		}
 	}
 	if idx.Std, err = stdPackages(); err != nil {
@@ -109,7 +116,7 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 				p.Before = repo.Text{Content: text, Found: true}
 				idx.Files[file] = p
 			}
-			idx.BeforeLinks = res.Before.Links
+			idx.BeforeLinks = markLinks(res.Before.Links, idx)
 		}
 		if res.After != nil {
 			for file, text := range res.After.Files {
@@ -117,7 +124,7 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 				p.After = repo.Text{Content: text, Found: true}
 				idx.Files[file] = p
 			}
-			idx.AfterLinks = res.After.Links
+			idx.AfterLinks = markLinks(res.After.Links, idx)
 		}
 		idx.Errors = res.Errors
 		// A version without a resolution keeps the texts from git.
@@ -132,6 +139,29 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 		}
 	}
 	return idx, nil
+}
+
+// markLinks gives each link of files inside a changed declaration the mark of the changed
+// functions and methods of its package that it names: MarkChanged when one of them changed
+// in its own text, MarkReached when all of them changed through their reach only.
+func markLinks(files map[string][]Link, idx *Index) map[string][]Link {
+	for _, links := range files {
+		for i := range links {
+			l := &links[i]
+			if !idx.ChangedDecls[l.In] {
+				continue
+			}
+			for _, key := range l.Funcs {
+				switch {
+				case idx.ChangedDecls[key] && !idx.Reached[key]:
+					l.Mark = MarkChanged
+				case idx.Reached[key] && l.Mark == "":
+					l.Mark = MarkReached
+				}
+			}
+		}
+	}
+	return files
 }
 
 // changedDeclsAndMethods returns the keys of the changed declarations and methods of idx,

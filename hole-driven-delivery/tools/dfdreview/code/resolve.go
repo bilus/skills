@@ -31,11 +31,20 @@ type Resolution struct {
 
 // Link is an identifier that uses a declared object, with the object's definition.
 type Link struct {
-	Line, Col, Len int    // the identifier's line, and its column and length in UTF-16 code units, from 1
-	File           string // the definition's file in the same version, relative to the code directory
-	To             int    // the definition's line in File
-	URL            string // the definition's documentation, for one outside the code directory
+	Line, Col, Len int      // the identifier's line, and its column and length in UTF-16 code units, from 1
+	File           string   // the definition's file in the same version, relative to the code directory
+	To             int      // the definition's line in File
+	URL            string   // the definition's documentation, for one outside the code directory
+	Funcs          []string // the keys of the functions and methods of its package that it names; for an interface method, those of the implementations
+	In             string   // the key of the function or method whose declaration holds the identifier, "" outside one
+	Mark           string   // MarkChanged or MarkReached for a link inside a changed declaration to a changed function or method, "" otherwise
 }
+
+// The marks of a changed declaration: a change in its own text, or a change in its reach only.
+const (
+	MarkChanged = "changed"
+	MarkReached = "reached"
+)
 
 // Load type-checks the module in both versions. It records the calls that every function
 // and method makes within its package, the text and the identifier links of every Go file,
@@ -162,19 +171,7 @@ func load(dir, version string) (*Resolution, []string) {
 // p that it calls or refers to. A call of an interface method stands for the method of every
 // type of p that implements the interface.
 func calls(p *packages.Package, out map[string][]string) {
-	var methods []*types.Func
-	scope := p.Types.Scope()
-	for _, name := range scope.Names() {
-		tn, ok := scope.Lookup(name).(*types.TypeName)
-		if !ok {
-			continue
-		}
-		if named, ok := types.Unalias(tn.Type()).(*types.Named); ok && !types.IsInterface(named) {
-			for i := range named.NumMethods() {
-				methods = append(methods, named.Method(i))
-			}
-		}
-	}
+	methods := concreteMethods(p)
 	for _, f := range p.Syntax {
 		for _, d := range f.Decls {
 			fd, ok := d.(*ast.FuncDecl)
@@ -201,6 +198,24 @@ func calls(p *packages.Package, out map[string][]string) {
 			out[funcKey(fn)] = sorted(callees)
 		}
 	}
+}
+
+// concreteMethods returns the methods of the types of p that are not interfaces.
+func concreteMethods(p *packages.Package) []*types.Func {
+	var methods []*types.Func
+	scope := p.Types.Scope()
+	for _, name := range scope.Names() {
+		tn, ok := scope.Lookup(name).(*types.TypeName)
+		if !ok {
+			continue
+		}
+		if named, ok := types.Unalias(tn.Type()).(*types.Named); ok && !types.IsInterface(named) {
+			for i := range named.NumMethods() {
+				methods = append(methods, named.Method(i))
+			}
+		}
+	}
+	return methods
 }
 
 // implementations returns fn itself, or for a method of an interface, the method of every

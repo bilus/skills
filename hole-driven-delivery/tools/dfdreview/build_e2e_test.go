@@ -103,8 +103,12 @@ func TestBuildShop(t *testing.T) {
 			}
 		}
 	}
-	if !has(d.Files["cart/cart.go"].AfterLinks, page.Link{Line: 16, Col: 13, Len: 4, File: "cart/cart.go", To: 21}) {
-		t.Errorf("it.cost() does not link to the method: %+v", d.Files["cart/cart.go"].AfterLinks)
+	// cost changed in its own text, and Total holds its call, so the link carries the mark.
+	if !has(d.Files["cart/cart.go"].AfterLinks, page.Link{Line: 16, Col: 13, Len: 4, File: "cart/cart.go", To: 21, Mark: "changed"}) {
+		t.Errorf("it.cost() does not link to the method with its mark: %+v", d.Files["cart/cart.go"].AfterLinks)
+	}
+	if !d.Decls["cart.Total"].Reached {
+		t.Errorf("cart.Total counts as changed in its own text")
 	}
 	if len(d.Errors) != 1 || !strings.HasPrefix(d.Errors[0], "working tree: example.com/shop/receipt: receipt/footer.go:4:") {
 		t.Errorf("package errors: %q", d.Errors)
@@ -136,13 +140,14 @@ func TestShopInChrome(t *testing.T) {
 	}
 	dom := dumpDOM(t, chrome, "file://"+opts.Out+"#code/cart.Total")
 	for name, pattern := range map[string]string{
-		"the status of the deep link":        `cart\.Total in cart/cart\.go:12 \(After\)`,
-		"the changed mark on cart.Total":     `href="#code/cart\.Total"><tspan[^>]*>cart\.Total</tspan><tspan class="changed">\*</tspan>`,
-		"no changed mark on receipt.Print":   `href="#code/receipt\.Print"><tspan[^>]*>receipt\.Print</tspan></a>`,
-		"the changed mark on the tab":        `Overview<span class="mark"[^>]*>\*</span>`,
-		"the link from it.cost() to cost":    `<a class="ident" href="#" data-file="cart/cart\.go" data-line="21" data-version="after">cost</a>`,
-		"the link from o.Items to the field": `<a class="ident" href="#" data-file="cart/cart\.go" data-line="4" data-version="after">Items</a>`,
-		"the package errors":                 `<h2>Package errors</h2><ul class="errors"><li>working tree: example\.com/shop/receipt: receipt/footer\.go:4:`,
+		"the status of the deep link":            `cart\.Total in cart/cart\.go:12 \(After\)`,
+		"the reach mark on cart.Total":           `href="#code/cart\.Total"><tspan[^>]*>cart\.Total</tspan><tspan class="reached">~</tspan>`,
+		"the highlight behind cart.Total":        `<rect [^>]*class="hl reached"`,
+		"no changed mark on receipt.Print":       `href="#code/receipt\.Print"><tspan[^>]*>receipt\.Print</tspan></a>`,
+		"the reach mark on the tab":              `Overview<span class="mark reached"[^>]*>~</span>`,
+		"the marked link from it.cost() to cost": `<a class="ident mark-changed"[^>]*data-file="cart/cart\.go" data-line="21"[^>]*>cost</a>`,
+		"the link from o.Items to the field":     `<a class="ident" href="#" data-file="cart/cart\.go" data-line="4" data-version="after">Items</a>`,
+		"the package errors":                     `<h2>Package errors</h2><ul class="errors"><li>working tree: example\.com/shop/receipt: receipt/footer\.go:4:`,
 	} {
 		if !regexp.MustCompile(pattern).MatchString(dom) {
 			t.Errorf("the page lacks %s: %s", name, pattern)

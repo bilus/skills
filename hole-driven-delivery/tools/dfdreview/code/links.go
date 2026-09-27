@@ -22,15 +22,16 @@ func links(root string, pkgs []*packages.Package, texts map[string]string) map[s
 	clauses := firstClauses(root, pkgs)
 	out := map[string][]Link{}
 	for _, p := range pkgs {
-		if p.TypesInfo == nil {
+		if p.TypesInfo == nil || p.Types == nil {
 			continue
 		}
+		methods := concreteMethods(p)
 		for _, f := range p.Syntax {
 			rel, ok := within(root, p.Fset.PositionFor(f.Pos(), false).Filename)
 			if _, done := out[rel]; !ok || done {
 				continue
 			}
-			out[rel] = fileLinks(root, p, f, clauses, strings.Split(texts[rel], "\n"))
+			out[rel] = fileLinks(root, p, f, clauses, methods, strings.Split(texts[rel], "\n"))
 		}
 	}
 	return out
@@ -55,30 +56,45 @@ func firstClauses(root string, pkgs []*packages.Package) map[string]clause {
 	return out
 }
 
-// fileLinks returns the identifier links of file f of p, in order. lines holds the file's text.
-func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string]clause, lines []string) []Link {
+// fileLinks returns the identifier links of file f of p, in order. methods holds the concrete
+// methods of p, and lines the file's text.
+func fileLinks(root string, p *packages.Package, f *ast.File, clauses map[string]clause, methods []*types.Func, lines []string) []Link {
 	owners := fieldOwners(p.TypesInfo, f)
 	var out []Link
-	ast.Inspect(f, func(n ast.Node) bool {
-		id, ok := n.(*ast.Ident)
-		if !ok {
-			return true
+	for _, d := range f.Decls {
+		in := ""
+		if fd, ok := d.(*ast.FuncDecl); ok {
+			if fn, ok := p.TypesInfo.Defs[fd.Name].(*types.Func); ok {
+				in = funcKey(fn)
+			}
 		}
-		obj := p.TypesInfo.Uses[id]
-		if obj == nil || obj.Pkg() == nil {
+		ast.Inspect(d, func(n ast.Node) bool {
+			id, ok := n.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			obj := p.TypesInfo.Uses[id]
+			if obj == nil || obj.Pkg() == nil {
+				return true
+			}
+			pos := p.Fset.PositionFor(id.Pos(), false)
+			if pos.Line < 1 || pos.Line > len(lines) || pos.Column-1 > len(lines[pos.Line-1]) {
+				return true
+			}
+			link := definition(root, p.Fset, obj, owners[id], clauses)
+			link.Line = pos.Line
+			link.Col = utf16Len(lines[pos.Line-1][:pos.Column-1]) + 1
+			link.Len = utf16Len(id.Name)
+			link.In = in
+			if fn, ok := obj.(*types.Func); ok && fn.Pkg() == p.Types {
+				for _, m := range implementations(fn.Origin(), methods) {
+					link.Funcs = append(link.Funcs, funcKey(m))
+				}
+			}
+			out = append(out, link)
 			return true
-		}
-		pos := p.Fset.PositionFor(id.Pos(), false)
-		if pos.Line < 1 || pos.Line > len(lines) || pos.Column-1 > len(lines[pos.Line-1]) {
-			return true
-		}
-		link := definition(root, p.Fset, obj, owners[id], clauses)
-		link.Line = pos.Line
-		link.Col = utf16Len(lines[pos.Line-1][:pos.Column-1]) + 1
-		link.Len = utf16Len(id.Name)
-		out = append(out, link)
-		return true
-	})
+		})
+	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Line != out[j].Line {
 			return out[i].Line < out[j].Line

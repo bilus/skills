@@ -99,13 +99,13 @@ func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index)
 	for key, pl := range c.Before {
 		decl := data.Decls[key]
 		decl.Before = &page.Place{File: pl.File, Start: pl.Start, End: pl.End}
-		decl.Changed = c.ChangedDecls[key]
+		decl.Changed, decl.Reached = c.ChangedDecls[key], c.Reached[key]
 		data.Decls[key] = decl
 	}
 	for key, pl := range c.After {
 		decl := data.Decls[key]
 		decl.After = &page.Place{File: pl.File, Start: pl.Start, End: pl.End}
-		decl.Changed = c.ChangedDecls[key]
+		decl.Changed, decl.Reached = c.ChangedDecls[key], c.Reached[key]
 		data.Decls[key] = decl
 	}
 	if err := os.MkdirAll(filepath.Dir(opts.Out), 0o755); err != nil {
@@ -139,7 +139,7 @@ func links(ls []code.Link) []page.Link {
 	}
 	out := make([]page.Link, 0, len(ls))
 	for _, l := range ls {
-		out = append(out, page.Link{Line: l.Line, Col: l.Col, Len: l.Len, File: l.File, To: l.To, URL: l.URL})
+		out = append(out, page.Link{Line: l.Line, Col: l.Col, Len: l.Len, File: l.File, To: l.To, URL: l.URL, Mark: l.Mark})
 	}
 	return out
 }

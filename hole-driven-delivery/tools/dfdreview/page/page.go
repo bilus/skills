@@ -55,6 +55,7 @@ type Link struct {
 	File string `json:"f,omitempty"`
 	To   int    `json:"t,omitempty"`
 	URL  string `json:"u,omitempty"`
+	Mark string `json:"m,omitempty"` // "changed" or "reached" inside a changed declaration
 }
 
 // Decl is where a declaration sits in each version, nil for a version without it,
@@ -63,6 +64,7 @@ type Decl struct {
 	Before  *Place `json:"before"`
 	After   *Place `json:"after"`
 	Changed bool   `json:"changed"`
+	Reached bool   `json:"reached,omitempty"` // changed through its reach only
 }
 
 // Place is a declaration's file and lines.
