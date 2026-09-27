@@ -29,6 +29,16 @@ type Index struct {
 	Changed                 []repo.Change
 	BeforeLinks, AfterLinks map[string][]Link // the identifier links of each Go file, by path
 	Errors                  []string          // the package errors of both versions
+	Uncovered               []Uncovered       // the changed declarations and methods that no drawing covers, by key
+}
+
+// Uncovered is a changed declaration or method that no drawing covers: no drawing links it, and
+// none links a function or method whose reach holds it.
+type Uncovered struct {
+	Key     string
+	Mark    string // MarkChanged or MarkReached
+	Place   Place
+	Version string // "after", or "before" for one that the working tree removed
 }
 
 // Place is where a declaration sits, its doc comment included.
@@ -59,20 +69,30 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 		return nil, err
 	}
 	if r.Base() != "" {
-		if idx.ChangedDecls, err = changedDeclsAndMethods(before, after, idx); err != nil {
+		beforeMethods, err := methodPlaces(before)
+		if err != nil {
+			return nil, fmt.Errorf("at the base: %w", err)
+		}
+		afterMethods, err := methodPlaces(after)
+		if err != nil {
 			return nil, err
 		}
-		idx.Reached = map[string]bool{}
+		beforeAll, afterAll := union(idx.Before, beforeMethods), union(idx.After, afterMethods)
+		idx.ChangedDecls = changedDecls(before, after, beforeAll, afterAll)
+		var calls map[string][]string
 		if res != nil && res.After != nil {
-			for key := range reached(res.After.Calls, idx.ChangedDecls) {
-				if !idx.ChangedDecls[key] {
-					idx.Reached[key] = true
-				}
+			calls = res.After.Calls
+		}
+		idx.Reached = map[string]bool{}
+		for key := range reached(calls, idx.ChangedDecls) {
+			if !idx.ChangedDecls[key] {
+				idx.Reached[key] = true
 			}
 		}
 		for key := range idx.Reached {
 			idx.ChangedDecls[key] = true
 		}
+		idx.Uncovered = uncovered(idx, linked(d), calls, beforeAll, afterAll)
 	}
 	if idx.Std, err = stdPackages(); err != nil {
 		return nil, err
@@ -164,18 +184,63 @@ func markLinks(files map[string][]Link, idx *Index) map[string][]Link {
 	return files
 }
 
-// changedDeclsAndMethods returns the keys of the changed declarations and methods of idx,
-// methods keyed like render.renderer.text.
-func changedDeclsAndMethods(before, after map[string]string, idx *Index) (map[string]bool, error) {
-	beforeMethods, err := methodPlaces(before)
-	if err != nil {
-		return nil, fmt.Errorf("at the base: %w", err)
+// linked returns the keys of the declarations that the diagrams link in either version: their
+// references, and the first named type of each type comment, which the page links.
+func linked(d *design.Design) map[string]bool {
+	keys := map[string]bool{}
+	for _, dg := range d.Diagrams {
+		for _, src := range []repo.Text{dg.Source.Before, dg.Source.After} {
+			for _, ref := range dfdtext.References(src.Content) {
+				keys[Key(ref)] = true
+			}
+			for _, t := range dfdtext.Types(src.Content) {
+				if key := qualifiedType.FindString(t); key != "" {
+					keys[key] = true
+				}
+			}
+		}
 	}
-	afterMethods, err := methodPlaces(after)
-	if err != nil {
-		return nil, err
+	return keys
+}
+
+// uncovered returns the changed declarations and methods of idx that no drawing covers: none of
+// them is a key of linked, or lies in the reach over calls of one. before and after hold the
+// places of each version's declarations and methods.
+func uncovered(idx *Index, linked map[string]bool, calls map[string][]string, before, after map[string]Place) []Uncovered {
+	covered := map[string]bool{}
+	var queue []string
+	for key := range linked {
+		covered[key] = true
+		queue = append(queue, key)
 	}
-	return changedDecls(before, after, union(idx.Before, beforeMethods), union(idx.After, afterMethods)), nil
+	for len(queue) > 0 {
+		key := queue[0]
+		queue = queue[1:]
+		for _, callee := range calls[key] {
+			if !covered[callee] {
+				covered[callee] = true
+				queue = append(queue, callee)
+			}
+		}
+	}
+	var out []Uncovered
+	for key := range idx.ChangedDecls {
+		if covered[key] {
+			continue
+		}
+		u := Uncovered{Key: key, Mark: MarkChanged}
+		if idx.Reached[key] {
+			u.Mark = MarkReached
+		}
+		if p, ok := after[key]; ok {
+			u.Place, u.Version = p, "after"
+		} else if p, ok := before[key]; ok {
+			u.Place, u.Version = p, "before"
+		}
+		out = append(out, u)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	return out
 }
 
 // reached returns the keys of the functions and methods whose reach over calls holds a key

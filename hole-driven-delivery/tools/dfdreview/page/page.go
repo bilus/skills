@@ -24,6 +24,18 @@ type Data struct {
 	NewScore *Card           `json:"newScore"`
 	Report   string          `json:"report"`
 	Errors   []string        `json:"errors"` // the package errors of both versions
+	// The changed declarations and methods that no drawing covers.
+	Uncovered []Uncovered `json:"uncovered"`
+}
+
+// Uncovered is a changed declaration or method that no drawing covers, with the place of its
+// declaration in one version.
+type Uncovered struct {
+	Key     string `json:"key"`
+	Mark    string `json:"mark"` // "changed" or "reached"
+	File    string `json:"file"`
+	Line    int    `json:"line"`
+	Version string `json:"version"` // "after", or "before" for one that the working tree removed
 }
 
 // Diagram is one tab: a diagram's views, each an SVG document or "", and its items' types.

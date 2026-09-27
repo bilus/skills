@@ -99,12 +99,16 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
 #code-body a.ident { color: inherit; text-decoration: none; }
 #code-body a.ident:hover, #code-body a.ident:focus { text-decoration: underline; cursor: pointer; }
 /* A marked identifier: its highlight, and its mark drawn above the line, so no column moves. */
-#code-body a.ident.mark-changed, #code-body a.ident.mark-reached { position: relative; border-radius: 2px; }
-#code-body a.ident.mark-changed { background: var(--del-bg); }
-#code-body a.ident.mark-reached { background: var(--amber-bg); }
-#code-body a.ident.mark-changed::after, #code-body a.ident.mark-reached::after { position: absolute; top: -0.55em; right: -0.5em; font-weight: 700; }
-#code-body a.ident.mark-changed::after { content: "*"; color: var(--del); }
-#code-body a.ident.mark-reached::after { content: "~"; color: var(--amber); }
+a.ident.mark-changed, a.ident.mark-reached { position: relative; border-radius: 2px; }
+a.ident.mark-changed { background: var(--del-bg); }
+a.ident.mark-reached { background: var(--amber-bg); }
+a.ident.mark-changed::after, a.ident.mark-reached::after { position: absolute; top: -0.55em; right: -0.5em; font-weight: 700; }
+a.ident.mark-changed::after { content: "*"; color: var(--del); }
+a.ident.mark-reached::after { content: "~"; color: var(--amber); }
+#uncovered ul { margin: 0; padding-left: 18px; font: 12.5px/1.9 ui-monospace, SFMono-Regular, Menlo, monospace; }
+#uncovered a.ident { color: var(--ink); text-decoration: none; }
+#uncovered a.ident:hover, #uncovered a.ident:focus { text-decoration: underline; }
+#uncovered li .muted { margin-left: 1.2em; }
 ul.errors { margin: 0; padding-left: 18px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 ul.errors li { white-space: pre-wrap; }
 .hljs-keyword, .hljs-literal { color: var(--code-kw); }
@@ -127,6 +131,7 @@ ul.errors li { white-space: pre-wrap; }
     <h2 id="diagram-title"></h2>
     <div id="views" class="tabs small" role="tablist" aria-label="Views"></div>
     <div id="drawing"></div>
+    <div id="uncovered"></div>
     <div id="notes"></div>
   </section>
   <div id="splitter" role="separator" aria-orientation="vertical" aria-label="Resize the code panel" tabindex="0" title="Drag to resize; double-click to reset"></div>
@@ -190,12 +195,47 @@ ul.errors li { white-space: pre-wrap; }
     tabs($("tabs"), data.diagrams.map((d, k) => ({
       id: k, label: d.number || "Overview", hint: d.number ? d.title : "",
       mark: marked[k],
-      markTip: (marked[k] === "changed" ? "links a declaration changed since " : "links a function whose calls reach a change since ") + data.base,
+      markTip: (marked[k] === "changed" ? "shows a declaration changed since " : "shows a function whose calls reach a change since ") + data.base,
     })), i, (k) => navigate(() => selectDiagram(k)));
     const d = data.diagrams[i];
     $("diagram-title").textContent = d.title;
     const present = ["before", "diff", "after"].filter((v) => d[v]);
     showView(present.includes(state.view[i]) ? state.view[i] : defaultView(d));
+    uncoveredList(d);
+  }
+
+  // uncoveredList lists, under the Overview drawing, the changed declarations and methods that
+  // no drawing covers, each with its mark and a link to its declaration.
+  function uncoveredList(d) {
+    const box = $("uncovered");
+    box.innerHTML = "";
+    if (d.number !== "" || !(data.uncovered || []).length) {
+      return;
+    }
+    const h = document.createElement("h2");
+    h.textContent = "Changes outside the drawings";
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "No drawing links these declarations, and no linked function reaches them through its calls.";
+    const ul = document.createElement("ul");
+    data.uncovered.forEach((u) => {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = "#";
+      a.className = "ident mark-" + u.mark;
+      a.textContent = u.key;
+      a.title = marks[u.mark].tip + data.base;
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        navigate(() => openDefinition({ f: u.file, t: u.line }, u.version));
+      });
+      const where = document.createElement("span");
+      where.className = "muted";
+      where.textContent = u.file + ":" + u.line + (u.version === "before" ? " (Before)" : "");
+      li.append(a, where);
+      ul.appendChild(li);
+    });
+    box.append(h, p, ul);
   }
 
   // defaultView returns the view a diagram opens in: Diff when it changed, else its one view.
@@ -306,6 +346,14 @@ ul.errors li { white-space: pre-wrap; }
         }
       }
     });
+    // The Overview also shows the changes outside the drawings.
+    if (d.number === "") {
+      (data.uncovered || []).forEach((u) => {
+        if (u.mark === "changed" || (u.mark === "reached" && !best)) {
+          best = u.mark;
+        }
+      });
+    }
     return best;
   }
 

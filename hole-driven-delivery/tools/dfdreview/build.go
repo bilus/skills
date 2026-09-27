@@ -66,7 +66,8 @@ func writePage(opts Options, views []draw.View, d *design.Design, c *code.Index)
 	data := page.Data{
 		Title: n.Title, Base: d.Base, Brief: n.Brief, Metaphor: n.Metaphor, Report: n.Report,
 		OldScore: card(n.OldScore), NewScore: card(n.NewScore), Errors: c.Errors,
-		Files: map[string]page.File{}, Decls: map[string]page.Decl{},
+		Uncovered: uncovered(c.Uncovered),
+		Files:     map[string]page.File{}, Decls: map[string]page.Decl{},
 		Terms: page.Versions{Before: design.Terms(d.Vocabulary.Before.Content), After: design.Terms(d.Vocabulary.After.Content)},
 	}
 	if data.Title == "" {
@@ -130,6 +131,15 @@ func card(c *notes.Card) *page.Card {
 		return nil
 	}
 	return &page.Card{Columns: c.Columns, Values: c.Values}
+}
+
+// uncovered turns the changes that no drawing covers into the page's form.
+func uncovered(us []code.Uncovered) []page.Uncovered {
+	out := make([]page.Uncovered, 0, len(us))
+	for _, u := range us {
+		out = append(out, page.Uncovered{Key: u.Key, Mark: u.Mark, File: u.Place.File, Line: u.Place.Start, Version: u.Version})
+	}
+	return out
 }
 
 // links turns a file's identifier links into the page's form.

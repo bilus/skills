@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -110,6 +111,10 @@ func TestBuildShop(t *testing.T) {
 	if !d.Decls["cart.Total"].Reached {
 		t.Errorf("cart.Total counts as changed in its own text")
 	}
+	// No drawing links the constant Footer, and no linked function reaches it.
+	if want := []page.Uncovered{{Key: "receipt.Footer", Mark: "changed", File: "receipt/footer.go", Line: 3, Version: "after"}}; !reflect.DeepEqual(d.Uncovered, want) {
+		t.Errorf("changes outside the drawings: %+v, want %+v", d.Uncovered, want)
+	}
 	if len(d.Errors) != 1 || !strings.HasPrefix(d.Errors[0], "working tree: example.com/shop/receipt: receipt/footer.go:4:") {
 		t.Errorf("package errors: %q", d.Errors)
 	}
@@ -140,14 +145,16 @@ func TestShopInChrome(t *testing.T) {
 	}
 	dom := dumpDOM(t, chrome, "file://"+opts.Out+"#code/cart.Total")
 	for name, pattern := range map[string]string{
-		"the status of the deep link":            `cart\.Total in cart/cart\.go:12 \(After\)`,
-		"the reach mark on cart.Total":           `href="#code/cart\.Total"><tspan[^>]*>cart\.Total</tspan><tspan class="reached">~</tspan>`,
-		"the highlight behind cart.Total":        `<rect [^>]*class="hl reached"`,
-		"the reach mark on receipt.Print":        `href="#code/receipt\.Print"><tspan[^>]*>receipt\.Print</tspan><tspan class="reached">~</tspan>`,
-		"the reach mark on the tab":              `Overview<span class="mark reached"[^>]*>~</span>`,
-		"the marked link from it.cost() to cost": `<a class="ident mark-changed"[^>]*data-file="cart/cart\.go" data-line="21"[^>]*>cost</a>`,
-		"the link from o.Items to the field":     `<a class="ident" href="#" data-file="cart/cart\.go" data-line="4" data-version="after">Items</a>`,
-		"the package errors":                     `<h2>Package errors</h2><ul class="errors"><li>working tree: example\.com/shop/receipt: receipt/footer\.go:4:`,
+		"the status of the deep link":                `cart\.Total in cart/cart\.go:12 \(After\)`,
+		"the reach mark on cart.Total":               `href="#code/cart\.Total"><tspan[^>]*>cart\.Total</tspan><tspan class="reached">~</tspan>`,
+		"the highlight behind cart.Total":            `<rect [^>]*class="hl reached"`,
+		"the reach mark on receipt.Print":            `href="#code/receipt\.Print"><tspan[^>]*>receipt\.Print</tspan><tspan class="reached">~</tspan>`,
+		"the changed mark on the tab, from the list": `Overview<span class="mark changed"[^>]*>\*</span>`,
+		"the list of changes outside the drawings":   `<h2>Changes outside the drawings</h2>`,
+		"the changed constant in the list":           `class="ident mark-changed"[^>]*>receipt\.Footer</a>`,
+		"the marked link from it.cost() to cost":     `<a class="ident mark-changed"[^>]*data-file="cart/cart\.go" data-line="21"[^>]*>cost</a>`,
+		"the link from o.Items to the field":         `<a class="ident" href="#" data-file="cart/cart\.go" data-line="4" data-version="after">Items</a>`,
+		"the package errors":                         `<h2>Package errors</h2><ul class="errors"><li>working tree: example\.com/shop/receipt: receipt/footer\.go:4:`,
 	} {
 		if !regexp.MustCompile(pattern).MatchString(dom) {
 			t.Errorf("the page lacks %s: %s", name, pattern)
