@@ -90,6 +90,10 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
 /* The After view marks changed lines beside their numbers; the left edge marks a selected declaration. */
 .line.added .n { box-shadow: inset -4px 0 0 var(--add); }
 .line.modified .n { box-shadow: inset -4px 0 0 var(--amber); }
+#code-body a.ident { color: inherit; text-decoration: none; }
+#code-body a.ident:hover, #code-body a.ident:focus { text-decoration: underline; cursor: pointer; }
+ul.errors { margin: 0; padding-left: 18px; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+ul.errors li { white-space: pre-wrap; }
 .hljs-keyword, .hljs-literal { color: var(--code-kw); }
 .hljs-string { color: var(--code-str); }
 .hljs-comment { color: var(--code-cmt); }
@@ -130,7 +134,7 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
   const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const other = (version) => (version === "before" ? "after" : "before");
   const viewNames = { before: "Before", diff: "Diff", after: "After" };
-  const state = { diagram: 0, view: {}, file: null, key: null, fileView: "after" };
+  const state = { diagram: 0, view: {}, file: null, key: null, line: null, fileView: "after" };
 
   $("title").textContent = data.title;
   $("subtitle").textContent = data.base
@@ -276,7 +280,7 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
     star.classList.add("changed");
     star.textContent = "*";
     const t = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    t.textContent = "changed since " + data.base;
+    t.textContent = "changed since " + data.base + ", directly or through a call";
     a.append(star, t);
   }
 
@@ -332,6 +336,7 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
   function openFile(path, view, key) {
     state.file = path;
     state.key = key || null;
+    state.line = null;
     state.fileView = view;
     renderFile();
   }
@@ -371,16 +376,63 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
     return status;
   }
 
+  // The identifier links of the open file's view, by line; renderFile fills it.
+  let lineLinks = {};
+
   // linkLine wraps each identifier of line n of the open file, in its highlighted html,
   // in a link to the identifier's definition in the same version.
   function linkLine(html, n, version) {
-    // HOLE(4): find the line's identifier links in the open file's links of version, and wrap each identifier, found by its column, in a link that calls openDefinition
-    return html;
+    const links = lineLinks[n];
+    if (!links) {
+      return html;
+    }
+    const t = document.createElement("template");
+    t.innerHTML = html;
+    const texts = [];
+    let offset = 0; // UTF-16 code units before each text node
+    const walker = document.createTreeWalker(t.content, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      texts.push({ node, start: offset });
+      offset += node.data.length;
+    }
+    // From the last identifier back, so a split leaves the earlier offsets of its node valid.
+    [...links].sort((a, b) => b.c - a.c).forEach((link) => {
+      const from = link.c - 1;
+      const text = texts.find((x) => from >= x.start && from + link.n <= x.start + x.node.data.length);
+      if (!text) {
+        return;
+      }
+      const name = text.node.splitText(from - text.start);
+      name.splitText(link.n);
+      const a = document.createElement("a");
+      a.className = "ident";
+      if (link.u) {
+        a.href = link.u;
+        a.target = "_blank";
+        a.rel = "noopener";
+      } else {
+        a.href = "#";
+        a.dataset.file = link.f;
+        a.dataset.line = link.t;
+        a.dataset.version = version;
+      }
+      name.replaceWith(a);
+      a.appendChild(name);
+    });
+    return t.innerHTML;
   }
 
   // openDefinition opens a link's definition: its file in the same version at its line, or its URL.
   function openDefinition(link, version) {
-    // HOLE(4): open the definition's file in the code panel in version, at its line, or open its URL in a new tab
+    if (link.u) {
+      window.open(link.u, "_blank", "noopener");
+      return;
+    }
+    state.file = link.f;
+    state.key = null;
+    state.line = link.t;
+    state.fileView = version;
+    renderFile();
   }
 
   function renderFile() {
@@ -399,8 +451,11 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
       state.fileView = v;
       renderFile();
     });
-    const where = state.key && state.fileView !== "diff" ? placeOf(state.key, state.fileView) : null;
-    let label = esc(state.file) + " (" + viewNames[state.fileView] + ")";
+    let where = state.key && state.fileView !== "diff" ? placeOf(state.key, state.fileView) : null;
+    if (state.line && state.fileView !== "diff") {
+      where = { start: state.line, end: state.line };
+    }
+    let label = esc(state.file) + (state.line ? ":" + state.line : "") + " (" + viewNames[state.fileView] + ")";
     if (state.key) {
       label = esc(state.key) + (where ? " in " + esc(state.file) + ":" + where.start : " in " + esc(state.file)) + " (" + viewNames[state.fileView] + ")";
     }
@@ -421,6 +476,10 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
     } else {
       const go = state.file.endsWith(".go") && window.hljs;
       const changed = state.fileView === "after" ? changedLines(f.diff) : {};
+      lineLinks = {};
+      (f[state.fileView + "Links"] || []).forEach((l) => {
+        (lineLinks[l.l] = lineLinks[l.l] || []).push(l);
+      });
       f[state.fileView].replace(/\n$/, "").split("\n").forEach((ln, i) => {
         const n = i + 1;
         const sel = (where && n >= where.start && n <= where.end ? " sel" : "") + (changed[n] ? " " + changed[n] : "");
@@ -435,8 +494,14 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
 
   // packageErrors lists the package errors of both versions.
   function packageErrors() {
-    // HOLE(4): list each package error, with its version and its package
-    return document.createElement("ul");
+    const ul = document.createElement("ul");
+    ul.className = "errors";
+    data.errors.forEach((e) => {
+      const li = document.createElement("li");
+      li.textContent = e;
+      ul.appendChild(li);
+    });
+    return ul;
   }
 
   // The notes under the drawings.
@@ -547,6 +612,17 @@ pre.report { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; bac
   }
   if (data.diagrams.length) {
     selectDiagram(0);
+  }
+  $("code-body").addEventListener("click", (e) => {
+    const a = e.target.closest("a.ident");
+    if (a && a.dataset.file) {
+      e.preventDefault();
+      openDefinition({ f: a.dataset.file, t: Number(a.dataset.line) }, a.dataset.version);
+    }
+  });
+  // A hash such as #code/analyze.sumTypes opens that declaration.
+  if (location.hash.startsWith("#code/")) {
+    showDecl(decodeURIComponent(location.hash.slice(6)), "after");
   }
 
   // The splitter resizes the code panel, and this browser keeps the width.
