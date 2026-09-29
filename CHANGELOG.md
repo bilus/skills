@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ---
 
+## todo-org
+
+### [0.1.0] - 2026-09-29
+
+Initial release. `todo.org` at a project's root holds its current work as org headings, and the bundled `plan.py`, taken from live-templ, serves it as a live page with a stable id per entry: the first five hex digits of the SHA-1 of the entry's outline path. The page pins a `* Next steps` heading and links every `#id` it finds. The agent copies the script into `tools/`, keeps `todo.org` out of git, takes every id from `plan.py --ids` and refreshes the references after a retitle. The port falls back to `$PORT`, so a `.claude/launch.json` entry with `autoPort` keeps two projects' pages apart. Ships with a human-facing `README.md`.
+
 ## otterwiki-search
 
 ### [0.1.0] - 2026-09-06
