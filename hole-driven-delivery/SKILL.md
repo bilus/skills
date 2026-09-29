@@ -91,7 +91,7 @@ dfdmetrics -score docs/flow.dfd
 
 The first command prints the report. The second prints the score card as two tab-separated lines: a header (`live_range read_distance top_shared shared pressure package_spread findings`) and one row of values. Every value is better when lower.
 
-Then run the vocabulary review and the design review from `prompts.md`, each with a sub-agent, and give the design review the report. Decide on each finding, and record every applied, deferred or discarded finding in the ledger. If you cannot run a sub-agent, run each review yourself with the same prompt, and record that in the ledger. Then write "The change in brief" in the plan: one paragraph that describes the change in the vocabulary's terms.
+Then run the vocabulary review and the design review from `prompts.md` in parallel, each with a sub-agent, and give the design review the report. Set each sub-agent's reasoning effort where the harness allows it, because a sub-agent otherwise inherits the session's effort. In Claude Code, set it to high for the design review and to medium for the vocabulary review. During a review, change none of its input files, for example by editing or regenerating code. If you must change them, give the review a snapshot: a commit or a worktree. Decide on each finding, and record every applied, deferred or discarded finding in the ledger. If you cannot run a sub-agent, run each review yourself with the same prompt, and record that in the ledger. Then write "The change in brief" in the plan: one paragraph that describes the change in the vocabulary's terms.
 
 At the plan gate and at each stage boundary, never in between, save this review's report and score card:
 

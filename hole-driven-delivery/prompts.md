@@ -10,6 +10,10 @@ Review a glossary for redundancy and accuracy. Do not rewrite it; report.
 Glossary: <path to docs/vocabulary.md>
 Sources: <plan path>, <paths of the dfd files>, <paths of the code, if any exists>
 
+Judge the terms, not the design, since a separate design review covers it. Compare the glossary
+with the listed sources, and with the project's own vocabulary file when this prompt names one.
+Read no other documents. Run no builds, tests or experiments.
+
 1. Redundant terms: entries that duplicate another entry, that another entry plus ordinary
    language already covers, or that no source uses. Say "remove" or "merge into <term>", and why.
 2. Wrong or imprecise definitions: quote the entry and the source that contradicts it.
@@ -17,7 +21,9 @@ Sources: <plan path>, <paths of the dfd files>, <paths of the code, if any exist
 4. One thing, several words: where the sources use different words for one thing, list the
    words and where each appears, so one can be chosen.
 
-Return numbered findings with evidence.
+Return at most 12 numbered findings with evidence, most severe first. Limit each finding's
+evidence to two file:line references and one quote under 25 words. Once you start writing the
+findings, make no more tool calls, and cite a quote in place of any missing line number.
 ```
 
 ## Design review
@@ -25,12 +31,15 @@ Return numbered findings with evidence.
 ```
 Review a leveled data flow design against its rules. Do not edit anything; report.
 
-Rules: <this skill's directory>/design.md
+Rules: <this skill's directory>/design.md. Read no other file of this skill.
 Design: <paths of the dfd files>
 Plan: <plan path>
 Code: <paths of the skeleton and of every file the change touches>
 Base: <the commit before the change, for a change to an existing design>
 dfdmetrics report: <paste the output of dfdmetrics docs/flow.dfd>
+
+Run no builds or tests. Run at most one experiment, and only to confirm a suspected
+high-severity finding.
 
 1. Boxes: does the action line say what the referenced functions do? Does the purpose line
    point at a later step? Are the references in the last parentheses, from one design package?
@@ -50,5 +59,7 @@ dfdmetrics report: <paste the output of dfdmetrics docs/flow.dfd>
    change inside a function's body replace a changed interface, or a change in a deeper
    diagram replace one in a higher diagram?
 
-Return numbered findings with evidence, most severe first.
+Return at most 12 numbered findings with evidence, most severe first. Limit each finding's
+evidence to two file:line references and one quote under 25 words. Once you start writing the
+findings, make no more tool calls, and cite a quote in place of any missing line number.
 ```
