@@ -27,7 +27,7 @@ Required reference: `design.md` in this skill's directory holds the design rules
 
 ## Tools
 
-- dfd renders the diagrams. Install it with `go install github.com/bilus/dfd/cmd/dfd@latest`. The review page needs a dfd with `--patch`, footnotes and explicit numbers.
+- dfd renders the diagrams. Its source is at https://github.com/bilus/dfd; install it with `go install github.com/bilus/dfd/cmd/dfd@latest`. The review page needs a dfd with `--patch`, footnotes and explicit numbers.
 - dfdmetrics measures the design and prints the score. It is a Go module of its own in this skill's `tools/dfdmetrics` directory: run `go install ./cmd/dfdmetrics` inside that directory.
 - dfdreview builds the review page. It is a Go module in `tools/dfdreview`: run `go install ./cmd/dfdreview` inside that directory. It runs `git`, `dfd` and the `go` command.
 
