@@ -1,6 +1,6 @@
 module github.com/bilus/skills/hole-driven-delivery/tools/dfdreview
 
-go 1.26.4
+go 1.27.0
 
 require golang.org/x/tools v0.50.0
 

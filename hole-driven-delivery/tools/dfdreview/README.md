@@ -10,6 +10,8 @@ Install it from this directory:
 go install ./cmd/dfdreview
 ```
 
+It needs Go 1.27 or later, as go.mod states. dfdreview type-checks each module with the go/types of the Go that built it, and that go/types rejects a module that declares a newer Go. With `GOTOOLCHAIN=auto`, the default, an older go command downloads Go 1.27 for the build.
+
 The binary lands in `$(go env GOPATH)/bin`, which must be on the PATH for the bare name to work. At a review, run it on the top diagram of the design:
 
 ```sh
