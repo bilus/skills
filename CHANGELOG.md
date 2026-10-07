@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ---
 
+## requirements-editor
+
+### [0.1.0] - 2026-10-07
+
+Initial release. A reference skill for the `requirements-editor` binary: a command table, opening the page for the user in the background and `--mode review` after the agent has edited requirement files, applying a pasted `requirements-patch` with a dry run first, the patch format for writing one by hand (identity by `issue` or `title`, `null` removes a field, `add` for a draft, `remove` behind `--allow-remove`), what lands in `REVIEW.md`, and how to rebuild the binary from its Nix flake with `devbox global install`. Tested with sub-agents: without the skill an agent only reached for the tool when handed its path; with it, an agent wrote a patch instead of editing the YAML and launched review mode with `--open=false`. Lives under `personal/` because it is tied to one binary on one machine. Ships with a human-facing `README.md`.
+
 ## todo-org
 
 ### [0.1.1] - 2026-10-07
