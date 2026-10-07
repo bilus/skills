@@ -141,7 +141,7 @@ PAGE = """<!doctype html>
     const [head, ...items] = next;
     box.innerHTML = `<h2>Next steps <span class="id">#${head.id}</span></h2>` +
       (head.body ? `<div class="body">${listMarkup(head.body)}</div>` : "") +
-      items.map(e => `<div class="body"><a class="ref" href="#e-${e.id}" data-ref="${e.id}">#${e.id}</a> ${markup(e.title)}${e.body ? "\\n" + markup(e.body) : ""}</div>`).join("");
+      items.map(e => `<div class="body"><a class="ref" href="#e-${e.id}" data-ref="${e.id}">#${e.id}</a> ${markup(e.title)}${e.body ? listMarkup(e.body) : ""}</div>`).join("");
   }
   function render(all) {
     known = new Set(all.map(e => e.id));
