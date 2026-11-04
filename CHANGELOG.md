@@ -6,6 +6,12 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ---
 
+## staged-delivery
+
+### [0.1.0] - 2026-11-04
+
+Initial release. A delivery workflow after Fowler's preparatory refactoring: an EARS requirement from `REQUIREMENTS.yaml`, the message or a marked draft; one acceptance test per requirement sentence, run to fail and then skipped; a current and a target data flow diagram per flow, whose difference minus the change is the list of refactor stages; a plan in `docs/plans/` with stages under 20 words and steps under 15, approved once. Then stages that each leave the application running and the suite green, steps of at most 100 changed lines as measured by `scripts/step-size.sh`, one commit per step with the summary as its whole message. A sub-agent does exploratory testing at review points the plan marks, with a brief in `references/review-brief.md`; its blockers and defects become a review fixes stage of new commits. All prose goes through the Codex MCP server with the prompt in `references/codex.md`. Docstrings under 15 words, external behavior only. Ships with a human-facing `README.md`. The script is tested against a sample repository; the Codex call and the review brief have not yet been exercised in a run.
+
 ## requirements-editor
 
 ### [0.1.0] - 2026-10-07
