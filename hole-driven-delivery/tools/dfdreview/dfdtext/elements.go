@@ -6,11 +6,12 @@ import "regexp"
 type kind int
 
 const (
-	process    kind = iota // a process box's title
-	entity                 // an external entity's name
-	store                  // a datastore's name
-	flowLabel              // the label of a flow arrow
-	storeLabel             // the label of a store arrow
+	process       kind = iota // a process box's title
+	entity                    // an external entity's name
+	store                     // a datastore's name
+	flowLabel                 // the label of a flow arrow
+	storeLabel                // the label of a store arrow
+	externalLabel             // the label of an arrow to or from an external system
 )
 
 // span is the text of an element on one source line: lines[line][start:end].
@@ -83,7 +84,7 @@ func elements(lines []string) []element {
 		case external(text):
 			cont = false
 			for _, a := range pending {
-				a.kind = storeLabel
+				a.kind = externalLabel
 				out = append(out, a)
 			}
 			pending = nil

@@ -509,11 +509,11 @@ func TestReadListsUncoveredChanges(t *testing.T) {
 	step := func(n int) map[string]string {
 		return map[string]string{
 			"go.mod":        goMod,
-			"docs/flow.dfd": "[1. Run\n (p.F)]\n> t\n[2. Next]\n# type: t = p.T\n",
+			"docs/flow.dfd": "[1. Run\n (p.F)]\n    > rows\n    |Rows|\n> t\n[2. Next]\n# type: t = p.T\n# store: Rows = s.Rows\n",
 			"p/p.go": fmt.Sprintf("package p\n\nimport \"example.com/m/s\"\n\n// T is a thing.\ntype T struct{}\n\n"+
 				"// M returns the step.\nfunc (T) M() int { return %d }\n\n// F calls g.\nfunc F() int { return g() }\n\n"+
 				"func g() int { return %d }\n\n// H calls s.S.\nfunc H() int { return s.S() }\n", n, n),
-			"s/s.go": fmt.Sprintf("package s\n\n// S returns the step.\nfunc S() int { return %d }\n", n),
+			"s/s.go": fmt.Sprintf("package s\n\n// S returns the step.\nfunc S() int { return %d }\n\n// Rows holds the step.\nvar Rows = []int{%d}\n", n, n),
 		}
 	}
 	g := gittest.New(t)
@@ -529,6 +529,7 @@ func TestReadListsUncoveredChanges(t *testing.T) {
 		got = append(got, fmt.Sprintf("%s %s %s:%d %s", u.Key, u.Mark, u.Place.File, u.Place.Start, u.Version))
 	}
 	// p.F is linked, and p.g lies in its reach; T.M belongs to a linked type, which has no calls.
+	// The store comment links s.Rows.
 	want := []string{
 		"p.H reached p/p.go:16 after",
 		"p.T.M changed p/p.go:8 after",

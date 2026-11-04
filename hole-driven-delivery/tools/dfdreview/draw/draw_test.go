@@ -45,19 +45,24 @@ func script(t *testing.T, body string) string {
 }
 
 // change makes a design with a changed top diagram, an unchanged, a new and a deleted child.
+// In the top diagram, a typed item opens the second line of each label, and the store gains
+// its comment and its first item's type in the working tree.
 func change(t *testing.T, withBase bool) (*design.Design, *code.Index) {
 	t.Helper()
 	g := gittest.New(t)
 	g.Write(map[string]string{
-		"docs/flow.dfd":      "[1. Read the sum types\n (lib.Read)]\n> items\n[2. Check]\n> x\n[3. Write]\n# type: items = []lib.Item\n",
+		"docs/flow.dfd": "[1. Read the sum types\n (lib.Read)]\n    > rows,\n      keys, sizes\n    |Rows|\n> items,\n  names, sizes\n" +
+			"[2. Check]\n> x\n[3. Write]\n# type: items = []lib.Item\n# type: keys = []string\n# type: names = []string\n# type: sizes = []int\n",
 		"docs/flow.1.dfd":    "[1.1. Parse]\n",
 		"docs/flow.3.dfd":    "[3.1. Old]\n",
 		"docs/vocabulary.md": "- sum type: a closed set of variants\n",
-		"lib/lib.go":         "package lib\n\nfunc Read() {}\n\ntype Item int\n",
+		"lib/lib.go":         "package lib\n\nfunc Read() {}\n\ntype Item int\n\nvar Rows []Item\n",
 	})
 	base := g.Commit("base")
 	g.Write(map[string]string{
-		"docs/flow.dfd":   "[1. Read the sum types\n (lib.Read)]\n> items\n[2. Check again]\n> x\n[3. Write]\n# type: items = []lib.Item\n",
+		"docs/flow.dfd": "[1. Read the sum types\n (lib.Read)]\n    > rows,\n      keys, sizes\n    |Rows|\n> items,\n  names, sizes\n" +
+			"[2. Check again]\n> x\n[3. Write]\n# type: items = []lib.Item\n# type: keys = []string\n# type: names = []string\n# type: sizes = []int\n" +
+			"# type: rows = []lib.Item\n# store: Rows = lib.Rows\n",
 		"docs/flow.2.dfd": "[2.1. New]\n",
 	})
 	g.Remove("docs/flow.3.dfd")
@@ -102,17 +107,21 @@ func TestViews(t *testing.T) {
 		}
 	}
 	top := views[0]
-	for _, want := range []string{"{lib.Read:@c/lib.Read}", "{sum types:@v/sum type}", "{items:@t/items}"} {
+	for _, want := range []string{"{lib.Read:@c/lib.Read}", "{sum types:@v/sum type}", "{items:@t/items}", "|{Rows:@c/lib.Rows}|", "> {rows:@t/rows},",
+		"\n      keys, {sizes:@t/sizes}\n", "\n  names, {sizes:@t/sizes}\n"} {
 		if !strings.Contains(top.After, want) {
 			t.Errorf("the after view's input lacks %q:\n%s", want, top.After)
 		}
 	}
-	for _, want := range []string{"--patch", "-[2. Check]", "+[2. Check again]", " [1. Read the {sum types:@v/sum type}"} {
+	// The store's line and its arrow's line stay the same, with the links of the working tree.
+	for _, want := range []string{"--patch", "-[2. Check]", "+[2. Check again]", " [1. Read the {sum types:@v/sum type}",
+		"\n     |{Rows:@c/lib.Rows}|\n", "\n     > {rows:@t/rows},\n"} {
 		if !strings.Contains(top.Diff, want) {
 			t.Errorf("the diff view's input lacks %q:\n%s", want, top.Diff)
 		}
 	}
-	for _, want := range []string{"{@c/lib.Read} #code/lib.Read", "{@v/sum type} #term/sum%20type", "{@t/items} #type/items"} {
+	for _, want := range []string{"{@c/lib.Read} #code/lib.Read", "{@v/sum type} #term/sum%20type", "{@t/items} #type/items",
+		"{@c/lib.Rows} #code/lib.Rows", "{@t/rows} #type/rows"} {
 		if !strings.Contains(top.After, want) {
 			t.Errorf("the footnotes lack %q:\n%s", want, top.After)
 		}
@@ -187,9 +196,16 @@ func TestViewsWithDfd(t *testing.T) {
 		t.Fatal(err)
 	}
 	top := views[0]
-	for _, want := range []string{`<a href="#code/lib.Read">`, `text-decoration="line-through"`, `>Check again<`} {
+	for _, want := range []string{`<a href="#code/lib.Read">`, `text-decoration="line-through"`, `>Check again<`,
+		`<a href="#code/lib.Rows">`, `<a href="#type/rows">`} {
 		if !strings.Contains(top.Diff, want) {
 			t.Errorf("the diff view lacks %q", want)
+		}
+	}
+	// Each view parsed, with the labels' typed items on their second lines; sizes follows another item there.
+	for view, svg := range map[string]string{"before": top.Before, "diff": top.Diff, "after": top.After} {
+		if !strings.Contains(svg, `<a href="#type/sizes">`) {
+			t.Errorf("the %s view lacks the link of sizes", view)
 		}
 	}
 }

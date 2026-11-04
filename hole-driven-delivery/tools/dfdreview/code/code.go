@@ -63,8 +63,8 @@ type Place struct {
 // Read loads the module with its types, then indexes the declarations and methods, the
 // changed files, and the identifier links and uses of both versions. With a module, the page
 // shows every Go file of both versions, test files included; without one, the files of the
-// declarations that the boxes and the type comments name, and no uses. Every changed file
-// shows too. Without a base, ChangedDecls is empty.
+// declarations named by the boxes, the type comments and the store comments, and no uses.
+// Every changed file shows too. Without a base, ChangedDecls is empty.
 func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 	res, err := Load(r)
 	if err != nil {
@@ -125,6 +125,9 @@ func Read(r *repo.Repo, d *design.Design) (*Index, error) {
 		for _, src := range []repo.Text{dg.Source.Before, dg.Source.After} {
 			keys := typeNames(dfdtext.Types(src.Content))
 			for _, ref := range dfdtext.References(src.Content) {
+				keys = append(keys, Key(ref))
+			}
+			for _, ref := range dfdtext.Stores(src.Content) {
 				keys = append(keys, Key(ref))
 			}
 			for _, key := range keys {
@@ -233,13 +236,17 @@ func uses(files map[string][]Link) map[string][]Use {
 	return out
 }
 
-// linked returns the keys of the declarations that the diagrams link in either version: their
-// references, and the first named type of each type comment, which the page links.
+// linked returns the keys of the declarations linked by the diagrams in either version: the
+// references of their boxes and of their store comments, and the first named type of each
+// type comment, since the page links each typed item to that type.
 func linked(d *design.Design) map[string]bool {
 	keys := map[string]bool{}
 	for _, dg := range d.Diagrams {
 		for _, src := range []repo.Text{dg.Source.Before, dg.Source.After} {
 			for _, ref := range dfdtext.References(src.Content) {
+				keys[Key(ref)] = true
+			}
+			for _, ref := range dfdtext.Stores(src.Content) {
 				keys[Key(ref)] = true
 			}
 			for _, t := range dfdtext.Types(src.Content) {

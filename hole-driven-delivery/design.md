@@ -44,6 +44,7 @@ The action line and the doc comment of the box's first reference say the same th
 
 - Every piece of I/O is drawn, as a store arrow or as an arrow to or from an external system.
 - A store holds state that belongs to the program: a struct filled in place, a map, a cache, or a working file for a later step.
+- A `# store: name = reference` comment names the declaration of a store's state, as in `# store: Live template = transform.liveTemplate`, and the review page links the store's name to that declaration.
 - An external system is anything outside the program that receives the program's output or supplies its input: a service, an event bus, and the files and directories that belong to the user. A tool that reads the user's source directories and writes generated files into them talks to `<Package directories>`, not to a store. Draw it beside the process, with `>` for data sent and `<` for data received: `> order placed` and `< ack` before `<Event bus>`.
 - dfdmetrics counts store items only, so the arrows of an external system raise no finding and no score.
 - A store arrow's label lists state items, separated by commas. The store and the label together identify an item, so a write and the read of one item use the same store and the same label.

@@ -80,9 +80,10 @@ func link(d *design.Design, c *code.Index, alignments map[string][]dfdtext.Op) (
 			return t
 		}
 		src, used := dfdtext.Link(t.Content, dfdtext.Linker{
-			Code:  target,
-			Types: dfdtext.Types(t.Content),
-			Terms: design.Terms(vocabulary.Content),
+			Code:   target,
+			Types:  dfdtext.Types(t.Content),
+			Stores: dfdtext.Stores(t.Content),
+			Terms:  design.Terms(vocabulary.Content),
 		})
 		for id, to := range used {
 			footnotes[id] = to

@@ -15,6 +15,21 @@ func TestTypes(t *testing.T) {
 	}
 }
 
+// A store comment without a qualified name as its reference counts for none.
+func TestStores(t *testing.T) {
+	src := "# store: Live template = transform.liveTemplate\n#store:Sugar closure=transform.sugar\n[A]\n" +
+		"# store: Package = golang.org/x/tools/go/packages.Package\n# store: Cache = the session cache\n" +
+		"# store: Sugar closure = transform.closure\n"
+	want := map[string]dfdtext.Reference{
+		"Live template": {"transform", "liveTemplate"},
+		"Sugar closure": {"transform", "closure"},
+		"Package":       {"golang.org/x/tools/go/packages", "Package"},
+	}
+	if got := dfdtext.Stores(src); !reflect.DeepEqual(got, want) {
+		t.Errorf("stores = %v, want %v", got, want)
+	}
+}
+
 // A description is a box's text without its number and its references, on one line.
 func TestDescriptions(t *testing.T) {
 	src := "{3 Entity}\n> a\n[1. Read the input\n to parse it\n (p.Read,\n  p.Parse)]\n> b\n[v := 2. Check it (see the spec)]\n> c\n[v]\n> d\n[Unnumbered]\n> e\n[3.1. Nested (p.N)]\n"

@@ -46,6 +46,34 @@ func (w *wrapper) apply(lines []string) string {
 	return strings.Join(out, "\n")
 }
 
+// trimmed returns sp without the whitespace around its text.
+func trimmed(lines []string, sp span) span {
+	s, t := trim(lines[sp.line][sp.start:sp.end])
+	return span{line: sp.line, start: sp.start + s, end: sp.start + t}
+}
+
+// opensLine reports whether one of spans starts at the first non-blank character of its line.
+func opensLine(lines []string, spans []span) bool {
+	for _, sp := range spans {
+		if s, _ := trim(lines[sp.line]); sp.start == s {
+			return true
+		}
+	}
+	return false
+}
+
+// storeName returns the span of a store's name, without the whitespace around it, and
+// whether the name is a bare alias. It adds the store's own alias to aliases, so a bare
+// name counts as an alias only below its declaration, as in dfd.
+func storeName(lines []string, e element, aliases map[string]bool) (span, bool) {
+	at := trimmed(lines, e.spans[0])
+	if alias := aliasOf(lines, e); alias != "" {
+		aliases[alias] = true
+		return at, false
+	}
+	return at, aliases[lines[at.line][at.start:at.end]]
+}
+
 // joined is an element's text with its lines joined by newlines, and the offset of each span in it.
 func joined(lines []string, e element) (string, []int) {
 	var b strings.Builder

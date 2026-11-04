@@ -20,24 +20,36 @@ type CodeFn func(Reference) string
 
 // Linker gives the targets of the links that Link adds.
 type Linker struct {
-	Code  CodeFn            // the target of each reference
-	Types map[string]string // the type of each flow label item
-	Terms map[string]string // the definition of each term
+	Code   CodeFn               // the target of each reference, nil for none
+	Types  map[string]string    // the type of each item of a flow or store label
+	Stores map[string]Reference // the reference of each store, by name
+	Terms  map[string]string    // the definition of each term
 }
 
-// Link wraps each reference, typed item and term of src in a footnote reference.
+// code returns the target of a reference, or "" without a Code function.
+func (l Linker) code(r Reference) string {
+	if l.Code == nil {
+		return ""
+	}
+	return l.Code(r)
+}
+
+// Link wraps each reference, typed item, store name and term of src in a footnote reference.
 // It returns the linked source and the footnotes it uses, by id. A typed item
 // links to "#type/<item>" and a term to "#term/<term>", with the name path-escaped.
+// A store's name links to its reference's target, in place of the terms in it. An item
+// that opens a continuation line of its label stays unlinked, all its lines included.
 func Link(src string, l Linker) (string, map[string]string) {
 	lines := strings.Split(src, "\n")
 	w := wrapper{footnotes: map[string]string{}}
 	terms := newTermMatcher(l.Terms)
+	aliases := map[string]bool{} // the store aliases above the current line
 	for _, e := range elements(lines) {
 		switch e.kind {
 		case process:
 			group, inGroup := lastGroup(lines, e)
 			for _, r := range references(lines, group) {
-				if target := l.Code(r.ref); target != "" {
+				if target := l.code(r.ref); target != "" {
 					w.add(r.at, "@c/"+r.ref.Qualifier+"."+r.ref.Name, target)
 				}
 			}
@@ -46,16 +58,32 @@ func Link(src string, l Linker) (string, map[string]string) {
 					w.add(t.at, "@v/"+t.term, "#term/"+url.PathEscape(t.term))
 				}
 			}
-		case entity, store:
+		case entity:
 			for _, t := range terms.find(lines, e) {
 				w.add(t.at, "@v/"+t.term, "#term/"+url.PathEscape(t.term))
 			}
-		case flowLabel:
+		case store:
+			at, bare := storeName(lines, e, aliases)
+			if bare {
+				break // dfd draws it with its label's links
+			}
+			if ref, ok := l.Stores[lines[at.line][at.start:at.end]]; ok {
+				if target := l.code(ref); target != "" {
+					w.add(at, "@c/"+ref.Qualifier+"."+ref.Name, target)
+					break
+				}
+			}
+			for _, t := range terms.find(lines, e) {
+				w.add(t.at, "@v/"+t.term, "#term/"+url.PathEscape(t.term))
+			}
+		case flowLabel, storeLabel:
 			for _, it := range items(lines, e) {
-				if _, typed := l.Types[it.name]; typed {
-					for _, at := range it.parts {
-						w.add(at, "@t/"+it.name, "#type/"+url.PathEscape(it.name))
-					}
+				// dfd reads a line that opens with a reference as an entity or a definition.
+				if _, typed := l.Types[it.name]; !typed || opensLine(lines, it.parts) {
+					continue
+				}
+				for _, at := range it.parts {
+					w.add(at, "@t/"+it.name, "#type/"+url.PathEscape(it.name))
 				}
 			}
 		}
@@ -91,6 +119,21 @@ func Types(src string) map[string]string {
 }
 
 var typeComment = regexp.MustCompile(`^#\s*type:\s*(.+?)\s*=\s*(.+?)$`)
+
+// Stores returns the reference of each store, by name, from the "# store: name = reference"
+// comments of src. A reference takes the form of a box's reference. A later comment for a
+// store replaces an earlier one, and a comment without such a reference counts for none.
+func Stores(src string) map[string]Reference {
+	stores := map[string]Reference{}
+	for _, line := range strings.Split(src, "\n") {
+		if m := storeComment.FindStringSubmatch(strings.TrimSpace(line)); m != nil {
+			stores[m[1]] = Reference{Qualifier: m[2] + m[3], Name: m[4]}
+		}
+	}
+	return stores
+}
+
+var storeComment = regexp.MustCompile(`^#\s*store:\s*(.+?)\s*=\s*` + qualified.String() + `$`)
 
 // Descriptions returns the text of each process's box in src, by number, on
 // one line and without its number and the references in its last parentheses.
@@ -166,11 +209,11 @@ func firstLine(text string) string {
 	return line
 }
 
-// aliasOf returns the alias that a box's opening line declares, or "".
+// aliasOf returns the alias on the opening line of a box or a store, or "".
 func aliasOf(lines []string, e element) string {
 	first := e.spans[0]
 	head := lines[first.line][:first.start]
-	open := strings.IndexAny(head, "[{")
+	open := strings.IndexAny(head, "[{|")
 	marker := strings.LastIndex(head, ":=")
 	if open < 0 || marker < open {
 		return ""

@@ -51,13 +51,14 @@ func TestRead(t *testing.T) {
 	g.Write(map[string]string{
 		"docs/flow.dfd":  "[1. Read (lib.Read, fmt.Println)]\n> x\n[2. Gone (lib.Gone)]\n# type: x = []*types.Item\n",
 		"types/types.go": "package types\n\ntype Item int\n",
+		"rows/rows.go":   "package rows\n\nvar Rows []int\n",
 		"lib/lib.go":     "package lib\n\nfunc Read() {}\n\nfunc Gone() {}\n",
 		"lib/other.go":   "package lib\n\nfunc Other() {}\n",
 		"README.md":      "old\n",
 	})
 	base := g.Commit("base")
 	g.Write(map[string]string{
-		"docs/flow.dfd": "[1. Read (lib.Read, fmt.Println)]\n> x\n[2. New (lib.New)]\n",
+		"docs/flow.dfd": "[1. Read (lib.Read, fmt.Println)]\n    > rows\n    |Rows|\n> x\n[2. New (lib.New)]\n# store: Rows = rows.Rows\n",
 		"lib/lib.go":    "package lib\n\nfunc Read() {}\n\nfunc New() {}\n",
 		"README.md":     "new\n",
 	})
@@ -86,7 +87,7 @@ func TestRead(t *testing.T) {
 	for f := range c.Files {
 		files = append(files, f)
 	}
-	for _, want := range []string{"lib/lib.go", "README.md", "docs/flow.dfd", "types/types.go"} {
+	for _, want := range []string{"lib/lib.go", "README.md", "docs/flow.dfd", "types/types.go", "rows/rows.go"} {
 		if _, ok := c.Files[want]; !ok {
 			t.Errorf("files %v lack %s", files, want)
 		}
