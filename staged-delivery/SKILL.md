@@ -11,10 +11,6 @@ place to go, then make the change. Every stage leaves a running application
 and a green suite. Every step is one commit of at most 100 changed lines with
 a one-line summary. The user approves the plan once and nothing else.
 
-Source for the refactoring discipline: Martin Fowler, "An example of
-preparatory refactoring" (2015),
-https://martinfowler.com/articles/preparatory-refactoring-example.html
-
 ## Vocabulary
 
 Use these words and no synonyms, in the plan, in commit messages, in
