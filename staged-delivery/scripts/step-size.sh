@@ -1,16 +1,18 @@
 #!/bin/sh
-# Counts changed lines for a step: insertions plus deletions, per file and
-# in total, against the step budget.
+# Counts changed lines for a step or a stage: insertions plus deletions,
+# per file and in total, against the budget.
 #
 #   scripts/step-size.sh            working tree and index against HEAD,
 #                                   plus untracked files
 #   scripts/step-size.sh <commit>   that commit against its parent
+#   scripts/step-size.sh <a>..<b>   the commits after <a> up to <b>, for
+#                                   a stage
 #
 # Exit status is 0 when the total is within the budget, 1 when over,
 # 2 on a usage error.
 #
 # Environment:
-#   STEP_SIZE_LIMIT    budget, default 100
+#   STEP_SIZE_LIMIT    budget, default 100 for a step and 399 for a stage
 #   STEP_SIZE_EXCLUDE  extra exclusion patterns (extended regexes on the
 #                      path, space separated), added to the defaults
 #
@@ -19,8 +21,6 @@
 # three lines contain "DO NOT EDIT" is treated as generated.
 
 set -eu
-
-limit="${STEP_SIZE_LIMIT:-100}"
 
 defaults='(^|/)(go\.sum|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lock|poetry\.lock|Gemfile\.lock|composer\.lock|flake\.lock|mix\.lock|Package\.resolved)$
 \.lock$
@@ -58,20 +58,32 @@ excluded() {
   fi
 }
 
+unit=step
+default=100
 case "$#" in
   0)
     diff_cmd="git diff --numstat HEAD --"
     untracked=$(git ls-files --others --exclude-standard)
     ;;
   1)
-    diff_cmd="git diff --numstat $1^ $1 --"
+    case "$1" in
+      *..*)
+        diff_cmd="git diff --numstat $1 --"
+        unit=stage
+        default=399
+        ;;
+      *)
+        diff_cmd="git diff --numstat $1^ $1 --"
+        ;;
+    esac
     untracked=""
     ;;
   *)
-    echo "usage: $0 [commit]" >&2
+    echo "usage: $0 [commit | from..to]" >&2
     exit 2
     ;;
 esac
+limit="${STEP_SIZE_LIMIT:-$default}"
 
 tmp=$(mktemp)
 trap 'rm -f "$tmp"' EXIT
@@ -116,7 +128,7 @@ fi
 
 echo "   total  $total of $limit"
 if [ "$total" -gt "$limit" ]; then
-  echo "OVER by $((total - limit)): split the step"
+  echo "OVER by $((total - limit)): split the $unit"
   exit 1
 fi
 echo "OK"
